@@ -126,8 +126,8 @@ lado.
 
 ## Compartir con SiBlock *(fase 3)*
 
-En el panel (con sesión), tarjeta **Compartir con SiBlock**. Tiene dos opciones, las dos
-**apagadas de fábrica**. Con las dos apagadas, SiBlock solo se conecta a internet para bajar la
+En el panel (con sesión), tarjeta **Compartir con SiBlock**. Tiene tres opciones, todas
+**apagadas de fábrica**. Con las tres apagadas, SiBlock solo se conecta a internet para bajar la
 lista y pedir la hora.
 
 **Compartir datos anónimos.** Encendida:
@@ -149,10 +149,28 @@ lista y pedir la hora.
 muestra: «Hay una versión nueva de SiBlock (vX.Y.Z). Se instala desde la página con el cable
 USB.» con el enlace a la página. Con la versión `dev` (compilada a mano) nunca avisa.
 
+**Usar los permitidos de la comunidad.** Encendida, una vez al día SiBlock pide la lista pública
+`https://siblock.s-dev.win/api/v1/permitidos` (no manda nada tuyo, ni el número de instalación).
+Son sitios que otras casas reportaron con «No debió bloquearse» y que el dueño de SiBlock revisó y
+aprobó a mano; como mucho 500. SiBlock deja de bloquearlos a ellos y a sus subdominios, igual que
+«Permitir», con dos diferencias:
+
+- tus sitios en **«Bloquear» siempre ganan** (también si bloqueas el dominio de arriba);
+- la lista va **aparte**: no sale en «Mis reglas» ni en el respaldo, y no se puede editar desde el
+  panel. Si no quieres uno de esos sitios, ponlo en «Bloquear».
+
+Debajo de la opción, el panel dice cuántos sitios están en uso y cuándo se revisó la lista por
+última vez. En las consultas recientes, lo que deja pasar sale como «permitido por la comunidad»
+(no como «permitido», que es lo tuyo). La lista se guarda en `/comunidad.bin` (unos 4 KB como
+mucho; solo una huella de cada sitio, no los nombres), así que sigue valiendo tras un corte de luz.
+Si una bajada falla o llega una lista mal hecha, se queda la de antes y se vuelve a intentar a la
+1, 2, 4… h. Por la serie sale `[nube] permitidos de la comunidad: <n>|no se pudo leer`.
+
 **Cómo apagarlas.** Quita la marca en el panel: se guarda al momento y no sale nada más. Apagar el
-aviso de versión también borra el aviso que estuviera en pantalla. "Borrar la configuración"
-(BOOT ≥ 10 s) apaga las dos y cambia el número de instalación: los reportes de antes ya no se
-pueden ligar a la placa.
+aviso de versión también borra el aviso que estuviera en pantalla; apagar los permitidos de la
+comunidad borra la lista (de la RAM y de la flash) y lo que dejaba pasar se vuelve a bloquear al
+momento. "Borrar la configuración" (BOOT ≥ 10 s) apaga las tres, borra `/comunidad.bin` y cambia el
+número de instalación: los reportes de antes ya no se pueden ligar a la placa.
 
 Si un reporte falla, el panel dice:
 
@@ -171,8 +189,8 @@ Desde el panel también hay dos enlaces a la página (se abren en otra pestaña)
   así que no llega a ningún servidor hasta que la persona marca «Adjuntar el diagnóstico de mi
   SiBlock» y manda el mensaje. La placa nunca manda correos.
 
-Se guarda en la NVS: `install_id` (32 hex), `cloud_share` y `ver_check` (solo `1` = encendido;
-falta, `0`, `2` o ilegible = apagado). La última versión vista y cómo salió el último aviso
+Se guarda en la NVS: `install_id` (32 hex), `cloud_share`, `ver_check` y `comunidad` (solo `1` =
+encendido; falta, `0`, `2` o ilegible = apagado). La última versión vista y cómo salió el último aviso
 (`lastPing`) viven solo en RAM. Para ver el estado: `GET /api/cloud` ([api.md](api.md#get-apicloud--fase-3)).
 
 ## Aparatos de la casa *(fase 5)*
@@ -335,6 +353,7 @@ BOOT 10 s o más. El LED se apaga, imprime `[boot] borrando la configuración` y
 | Opción de Private Relay (vuelve a quedar apagada) *(fase 2)* | |
 | La historia de las gráficas (`/history.bin`: a qué horas hay gente en casa) *(fase 2)* | |
 | "Compartir datos anónimos" y "Avisarme de versiones nuevas" (vuelven a quedar apagadas) *(fase 3)* | |
+| "Usar los permitidos de la comunidad" (vuelve a quedar apagada) y su lista (`/comunidad.bin`) | |
 | El número de instalación (`install_id`): se crea otro nuevo *(fase 3)* | |
 | Nombres de los aparatos, horarios y hora de la casa (`/familia.txt`) *(fase 5)* | |
 | Las listas elegidas (clave `lists` de la NVS: vuelve a quedar solo la general) *(fase 5)* | |

@@ -41,7 +41,11 @@ npx wrangler d1 execute siblock --remote --command "SELECT name FROM sqlite_mast
 ```
 
 Comprobar: salen `reportes_modem`, `reportes_bloqueo`, `placas`, `bloqueadas`, `pasos`, `temas`,
-`contacto_dia`, `respuestas_dia` (y `d1_migrations`).
+`contacto_dia`, `respuestas_dia`, `permitidos`, `permitidos_version` (y `d1_migrations`).
+
+Si el Worker ya estaba publicado, el mismo `migrations apply --remote` suma solo las que faltan
+(p. ej. `0003_permitidos.sql`, la lista de permitidos de la comunidad). Hazlo **antes** de publicar
+el Worker nuevo: sin esas tablas, `/api/v1/permitidos` y el resumen del dueño dan 500.
 
 ## 3) Email Routing (recibir en `contacto@s-dev.win`)
 

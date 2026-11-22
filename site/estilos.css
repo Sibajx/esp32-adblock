@@ -516,6 +516,11 @@ p code, li code {
 .grafica-valor { fill: var(--suave); font-variant-numeric: tabular-nums; }
 .grafica-barra { fill: var(--pino); }
 .sin-datos { color: var(--suave); font-style: italic; }
+.boton-chico { min-height: 2.75rem; padding: 0.4rem 1rem; font-size: 0.95rem; }
+.lista-sitios { list-style: none; margin: 0; padding: 0; max-width: 40rem; }
+.lista-sitios li { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.75rem; padding: 0.5rem 0; border-bottom: 1px solid var(--linea); }
+.sitio { flex: 1 1 14rem; min-width: 0; overflow-wrap: anywhere; font-weight: 600; }
+.sitio-detalle { color: var(--suave); font-variant-numeric: tabular-nums; }
 
 /* Fase 5: "¿Qué dice la luz?" */
 :root { --luz: #1f6fe5; --luz-halo: rgba(31, 111, 229, 0.28); }

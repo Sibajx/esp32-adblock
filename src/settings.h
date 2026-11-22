@@ -37,5 +37,7 @@ bool cloudShare();  // "Compartir datos anónimos": solo el valor 1 guardado cue
 bool setCloudShare(bool on);  // false si no se pudo guardar
 bool versionCheck();  // "Avisarme de versiones nuevas": solo el valor 1 cuenta
 bool setVersionCheck(bool on);
+bool community();  // "Usar los permitidos de la comunidad": solo el valor 1 cuenta
+bool setCommunity(bool on);
 void factoryReset();  // borra el espacio "siblock" entero (no toca la lista ni las reglas)
 }  // namespace settings

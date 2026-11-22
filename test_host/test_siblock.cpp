@@ -1,4 +1,5 @@
 // Pruebas de lib/siblock_core en la PC:  make -C test_host
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <thread>
@@ -16,6 +17,7 @@
 #include "../lib/siblock_core/family.h"
 #include "../lib/siblock_core/backup.h"
 #include "../lib/siblock_core/lists.h"
+#include "../lib/siblock_core/community.h"
 
 // family/backup usan adblock_core (sufijos, normalizeDomain); el Makefile solo enlaza
 // siblock_core, así que se compila aquí junto con la prueba.
@@ -1536,6 +1538,138 @@ static void testSavings() {
   CHECK(kSavedBytesPerBlocked == 30720);
 }
 
+// ---------- Permitidos de la comunidad ----------
+
+static bool parseCommunity(const std::string& body, CommunityList& out, size_t chunk = 0) {
+  CommunityParser p;
+  if (!chunk) chunk = body.size() ? body.size() : 1;
+  for (size_t i = 0; i < body.size(); i += chunk) p.feed(body.data() + i, std::min(chunk, body.size() - i));
+  return p.finish(out);
+}
+
+static bool parses(const std::string& body) {
+  CommunityList l;
+  return parseCommunity(body, l);
+}
+
+static void testCommunity() {
+  // FNV-1a de 64 bits (valores conocidos).
+  CHECK(communityHash("", 0) == 0xcbf29ce484222325ULL);
+  CHECK(communityHash(std::string("a")) == 0xaf63dc4c8601ec8cULL);
+
+  CommunityList l;
+  const std::string ok = "{\"version\": 7, \"dominios\": [\"b.ejemplo.com\", \"a.ejemplo.com\", \"b.ejemplo.com\"]}";
+  CHECK(parseCommunity(ok, l));
+  CHECK(l.version == 7 && l.updated == 0);
+  CHECK(l.keys.size() == 2);  // sin repetir
+  CHECK(std::is_sorted(l.keys.begin(), l.keys.end()));
+  // De a un byte (como llega por la red) da lo mismo.
+  CommunityList l1;
+  CHECK(parseCommunity(ok, l1, 1) && l1.keys == l.keys && l1.version == 7);
+  CommunityList l3;
+  CHECK(parseCommunity(ok, l3, 3) && l3.keys == l.keys);
+
+  // Dominio y subdominios, como «Permitir»; el padre y los parecidos no.
+  CHECK(communityAllows(l.keys, "a.ejemplo.com"));
+  CHECK(communityAllows(l.keys, "x.y.a.ejemplo.com"));
+  CHECK(!communityAllows(l.keys, "ejemplo.com"));
+  CHECK(!communityAllows(l.keys, "aa.ejemplo.com"));
+  CHECK(!communityAllows(l.keys, "a.ejemplo.com.mx"));
+  CHECK(!communityAllows(l.keys, ""));
+  CHECK(!communityAllows(std::vector<uint64_t>(), "a.ejemplo.com"));
+
+  // Vacía, con espacios y saltos, con claves de más (se saltan) y en otro orden.
+  CHECK(parseCommunity("{\"version\":0,\"dominios\":[]}", l) && l.version == 0 && l.keys.empty());
+  CHECK(parses(" \r\n{ \"dominios\" : [ \"a.com\" ] ,\n \"version\" : 4294967295 } \n"));
+  CHECK(parses("{\"version\":1,\"nota\":\"hola\",\"n\":-1.5e3,\"x\":true,\"y\":null,\"z\":false,\"dominios\":[]}"));
+
+  // Malformados: todo o nada.
+  const char* malos[] = {
+      "",
+      "[]",
+      "{}",
+      "{\"version\":1}",
+      "{\"dominios\":[]}",
+      "{\"version\":1,\"dominios\":[]",                 // sin cerrar
+      "{\"version\":1,\"dominios\":[]}x",               // basura después
+      "{\"version\":1,\"dominios\":[]}{}",
+      "{\"version\":1,\"dominios\":[],}",                // coma de más
+      "{\"version\":1,\"dominios\":[\"a.com\",]}",
+      "{\"version\":1,\"dominios\":[,\"a.com\"]}",
+      "{\"version\":1 \"dominios\":[]}",
+      "{\"version\":\"1\",\"dominios\":[]}",            // versión como texto
+      "{\"version\":-1,\"dominios\":[]}",
+      "{\"version\":01,\"dominios\":[]}",
+      "{\"version\":1.5,\"dominios\":[]}",
+      "{\"version\":4294967296,\"dominios\":[]}",
+      "{\"version\":1,\"version\":2,\"dominios\":[]}",  // clave repetida
+      "{\"version\":1,\"dominios\":[],\"dominios\":[]}",
+      "{\"version\":1,\"dominios\":\"a.com\"}",
+      "{\"version\":1,\"dominios\":[1]}",
+      "{\"version\":1,\"dominios\":[[\"a.com\"]]}",
+      "{\"version\":1,\"dominios\":[\"A.com\"]}",       // mayúsculas
+      "{\"version\":1,\"dominios\":[\"com\"]}",
+      "{\"version\":1,\"dominios\":[\"a..com\"]}",
+      "{\"version\":1,\"dominios\":[\"-a.com\"]}",
+      "{\"version\":1,\"dominios\":[\"a.com \"]}",
+      "{\"version\":1,\"dominios\":[\"a\\u002ecom\"]}",  // sin escapes
+      "{\"version\":1,\"dominios\":[\"a.com\"],\"x\":{}}",  // otras claves: solo valores sencillos
+      "{\"version\":1,\"dominios\":[],\"x\":[]}",
+      "{\"version\":1,\"dominios\":[],\"x\":tru}",
+      "{\"version\":1,\"dominios\":[],\"x\":abc}",
+      "{\"version\":1,\"dominios\":[],\"x\":\"a\nb\"}",  // control dentro de un texto
+      "{version:1,\"dominios\":[]}",
+  };
+  for (const char* m : malos) {
+    bool r = parses(m);
+    if (r) std::printf("  aceptó: %s\n", m);
+    CHECK(!r);
+  }
+  // Un texto de más de 253 en una clave que se salta vale; como dominio, no.
+  CHECK(parses("{\"version\":1,\"dominios\":[],\"x\":\"" + std::string(400, 'a') + "\"}"));
+  CHECK(!parses("{\"version\":1,\"dominios\":[\"" + std::string(250, 'a') + ".com\"]}"));
+
+  // Tope de 500 sitios y de 32 KB.
+  auto lista = [](size_t n) {
+    std::string b = "{\"version\":3,\"dominios\":[";
+    for (size_t i = 0; i < n; i++) b += (i ? ",\"s" : "\"s") + std::to_string(i) + ".ejemplo.com\"";
+    return b + "]}";
+  };
+  CHECK(parseCommunity(lista(kCommunityMax), l) && l.keys.size() == kCommunityMax);
+  CHECK(!parses(lista(kCommunityMax + 1)));
+  std::string relleno = "{\"version\":1,\"dominios\":[],\"x\":\"";
+  std::string grande = relleno + std::string(kCommunityMaxBody - relleno.size() - 2, 'a') + "\"}";
+  CHECK(grande.size() == kCommunityMaxBody && parses(grande));
+  CHECK(!parses(" " + grande));  // un byte más del tope
+  // Lo que se lee después de un error no lo arregla.
+  CommunityParser p;
+  CHECK(!p.feed("{x", 2));
+  CHECK(!p.feed("\"version\":1,\"dominios\":[]}", 26));
+  CHECK(!p.finish(l));
+
+  // Archivo: ida y vuelta, y roto → se ignora.
+  CommunityList a;
+  CHECK(parseCommunity(lista(3), a));
+  a.updated = 1764000000u;
+  std::string f = encodeCommunity(a);
+  CHECK(f.size() == 16 + 3 * 8 && f.compare(0, 4, "SBC1") == 0);
+  CommunityList b;
+  CHECK(decodeCommunity(reinterpret_cast<const uint8_t*>(f.data()), f.size(), b));
+  CHECK(b.version == 3 && b.updated == 1764000000u && b.keys == a.keys);
+  CommunityList vacia;
+  std::string fv = encodeCommunity(vacia);
+  CHECK(fv.size() == 16 && decodeCommunity(reinterpret_cast<const uint8_t*>(fv.data()), fv.size(), b) && b.keys.empty());
+  auto roto = [&](std::string g) { CommunityList x; return !decodeCommunity(reinterpret_cast<const uint8_t*>(g.data()), g.size(), x); };
+  CHECK(roto(f.substr(0, f.size() - 1)));       // cortado
+  CHECK(roto(f + "x"));                          // de más
+  { std::string g = f; g[3] = '2'; CHECK(roto(g)); }  // otra cabecera
+  { std::string g = f; std::swap_ranges(g.begin() + 16, g.begin() + 24, g.begin() + 24); CHECK(roto(g)); }  // desordenado
+  { std::string g = f; g.replace(24, 8, g.substr(16, 8)); CHECK(roto(g)); }  // repetido
+  { CommunityList big; big.keys.resize(kCommunityMax + 1); for (size_t i = 0; i < big.keys.size(); i++) big.keys[i] = i;
+    CHECK(roto(encodeCommunity(big))); }
+  CHECK(!decodeCommunity(nullptr, 0, b));
+}
+
 int main() {
   testSha256();
   testPbkdf2();
@@ -1565,6 +1699,7 @@ int main() {
   testLists();
   testStatusLed();
   testSavings();
+  testCommunity();
   if (fails) {
     std::printf("%d fallas de %d pruebas\n", fails, checks);
     return 1;

@@ -143,7 +143,8 @@ configuración. La contraseña usa el alfabeto `abcdefghjkmnpqrstuvwxyz23456789`
 ```
 `v` puede ser `lista`, `tuyo` (regla propia), `permitido`, `pausa` u `ok`; *(fase 5)* también
 `horario` (lo bloqueó un horario) y `pausa-aparato` (la lista lo habría bloqueado, pero ese
-aparato está en pausa). `recent` trae hasta 20
+aparato está en pausa), y `comunidad` (la lista lo habría bloqueado, pero está en los permitidos
+de la comunidad; ver [`GET /api/cloud`](#get-apicloud--fase-3)). `recent` trae hasta 20
 consultas, de la más nueva a la más vieja. `clients` trae los 10 aparatos que más preguntan;
 `ago` son los segundos desde su última consulta. Viven solo en RAM.
 
@@ -297,7 +298,8 @@ El estado de "Compartir con SiBlock". Las dos opciones están **apagadas de fáb
 
 ```json
 {"share":false,"versionCheck":false,"installId":"<32 hex>","current":"v1.2.0",
- "latest":"","update":false,"lastPing":"never"}
+ "latest":"","update":false,"lastPing":"never",
+ "community":false,"communityCount":0,"communityUpdated":0}
 ```
 
 | Campo | Qué es |
@@ -309,19 +311,25 @@ El estado de "Compartir con SiBlock". Las dos opciones están **apagadas de fáb
 | `latest` | La última versión publicada que vio la consulta de versión; `""` si todavía no hay o si `versionCheck` está apagado. Solo en RAM |
 | `update` | `true` si `latest` y `current` son `vX.Y.Z` y `latest` es más nueva (con `dev` siempre `false`) |
 | `lastPing` | Cómo salió el último aviso diario: `never`, `ok` o `fail`. Solo en RAM |
+| `community` | "Usar los permitidos de la comunidad" (NVS `comunidad`) |
+| `communityCount` | Sitios de la comunidad en uso (0 a 500); 0 con la opción apagada |
+| `communityUpdated` | Segundos desde 1970 de la última bajada buena de la lista; `0` si todavía no hay (o se bajó sin hora de internet). Se guarda con la lista en `/comunidad.bin` |
 
 En la NVS solo cuenta como encendido el valor `1`: si la clave falta, vale `2` o no se puede leer,
 la opción está apagada y no sale nada.
 
 ### `POST /api/cloud` 🔒 *(fase 3)*
-Campos: `share` y/o `versionCheck`, cada uno `0` o `1`.
+Campos: `share`, `versionCheck` y/o `community`, cada uno `0` o `1`.
 
 - **200** con el mismo JSON de `GET /api/cloud` (ya con lo que quedó).
-- **400** `{"ok":false,"error":"datos"}` si no viene ninguno de los dos o alguno no es `0`/`1`
+- **400** `{"ok":false,"error":"datos"}` si no viene ninguno o alguno no es `0`/`1`
   (`share=2`, vacío): no cambia **nada**.
-- **500** `{"ok":false,"error":"guardar"}` si la NVS no lo guardó.
+- **500** `{"ok":false,"error":"guardar"}` si la NVS no lo guardó; las que ya se habían cambiado en
+  el mismo pedido vuelven a como estaban.
 - Sin sesión → **401**; sin `X-Requested-With` → **403**. Cuerpo con el tope de 512 B (413).
 - Apagar `versionCheck` borra `latest` de la RAM (no se avisa de nada con la opción apagada).
+- Apagar `community` borra la lista de la RAM y `/comunidad.bin`: lo que dejaba pasar se vuelve a
+  bloquear al momento.
 
 Encender una opción arranca su calendario (`siblock::CloudSchedule`, en `main.cpp`):
 
@@ -329,11 +337,27 @@ Encender una opción arranca su calendario (`siblock::CloudSchedule`, en `main.c
 |---|---|---|
 | `share` | `POST https://siblock.s-dev.win/api/v1/placa` con `{"i":"<installId>","v":"<versión>","b":<bloqueadas en 24 h>}` y nada más | Al minuto de encenderla (o de arrancar con ella encendida) y luego cada 24 h + hasta 1 h al azar. Solo con la hora de internet (si no, espera). Si falla: a la 1, 2, 4… h, hasta 24 h |
 | `versionCheck` | `GET https://siblock.s-dev.win/version.json`, **sin cuerpo ni número**; lee como mucho 1024 B | Igual: al minuto y luego cada 24 h + hasta 1 h al azar |
+| `community` | `GET https://siblock.s-dev.win/api/v1/permitidos`, **sin cuerpo ni número**; lee como mucho 32 KB, de a pedazos de 256 B (nunca entero en la RAM) | Igual que las otras. Si falla o la lista no es válida, queda la anterior |
 
 Nada sale mientras se baja la lista, sin WiFi, ni con la opción apagada. Las dos peticiones llevan
 `User-Agent: SiBlock/<versión>`, tienen 8 s de tope, validan el certificado con las raíces de
 `certs.h` y no siguen redirecciones. Por la serie sale `[nube] aviso diario: ok|falló` y
-`[nube] versión publicada: vX.Y.Z|no se pudo leer`.
+`[nube] versión publicada: vX.Y.Z|no se pudo leer` y `[nube] permitidos de la comunidad: <n>|no se
+pudo leer`.
+
+La lista de la comunidad se revisa en la placa con `siblock::CommunityParser`
+(`lib/siblock_core/community.*`), todo o nada: un solo objeto JSON; `version` entero de 0 a
+4294967295; `dominios` lista de textos que pasan `validReportDomain`, como mucho 500; cada clave una
+sola vez; otras claves se saltan si su valor es texto, número, `true`, `false` o `null`; textos sin
+`\`; como mucho 32 KB. En la placa quedan solo las huellas (FNV-1a de 64 bits, 8 B por sitio) en
+RAM y en `/comunidad.bin` (`"SBC1"`, versión, `communityUpdated`, cantidad y las huellas ordenadas;
+≤ 4016 B; se escribe en `/comunidad.new` y se renombra).
+
+En la búsqueda (`BlockList::check`) el orden es: `ALLOWLIST` → tu «Permitir» → pausa → tu
+«Bloquear» → lista. Si la lista lo bloquearía y está en los permitidos de la comunidad (el sitio o
+un padre), pasa con el veredicto `comunidad` (en `/api/detail`, `recent[].v`), distinto de
+`permitido` (lo tuyo). A diferencia de tu «Permitir», la comunidad no se salta la protección
+anti-rebinding.
 
 ### `POST /api/report/modem` 🔒 *(fase 3)*
 Campos: `fabricante`, `dnsOk` (`0` o `1`) y `menu`, con los valores de las
@@ -655,7 +679,7 @@ de la página sigue en `'self'`. Pasos para publicarlo: [`cloud/DEPLOY.md`](../c
 ### Reglas comunes del Worker
 
 - Las respuestas son JSON (`application/json; charset=utf-8`) con `X-Content-Type-Options: nosniff`
-  y `Cache-Control: no-store` (salvo `/estadisticas`). Ninguna pone cookies.
+  y `Cache-Control: no-store` (salvo `/estadisticas` y `/permitidos`). Ninguna pone cookies.
 - **POST**: el cuerpo es un objeto JSON. Se lee sin pasar del tope de cada ruta (no se confía en
   `Content-Length`); más → **413**. Si no es JSON, no es UTF-8 válido o no es un objeto → **400**.
   Las claves de más se ignoran y no se guardan.
@@ -678,7 +702,8 @@ Errores (siempre `{"error":"<código>"}`):
 | 400 | `datos` | Falta algo, valor fuera de las listas, JSON roto |
 | 403 | `origen` | `Origin` de otra página |
 | 403 | `turnstile` | Falta Turnstile o no es válido (página y Contáctanos) |
-| 403 | `acceso` | Resumen del dueño sin Access válido |
+| 403 | `acceso` | Rutas del dueño sin Access válido |
+| 409 | `tope` | Aprobar un permitido con la lista llena (500) |
 | 404 | `no_existe` | Ruta desconocida |
 | 405 | `metodo` | Método que la ruta no acepta (p. ej. `GET /api/v1/contacto`) |
 | 413 | `grande` | Cuerpo más grande que el tope de la ruta |
@@ -805,6 +830,34 @@ Pública, `Cache-Control: public, max-age=300`.
 | `bloqueadasSemanas` | Siempre **12** semanas que empiezan en lunes (UTC), la más vieja primero, con 0 si no hay datos |
 | `modems` | Grupos `(pais, proveedor, fabricante, menu)` con `dns_ok` = sí y **3 reportes o más**; nunca `menu=otro` ni `fabricante=no-se` |
 
+### `GET /api/v1/permitidos`
+La lista de permitidos de la comunidad: sitios que el dueño revisó y aprobó a mano a partir de los
+reportes «No debió bloquearse». Pública: sin Access, sin Turnstile, sin número ni nada de quien
+pregunta, y no guarda nada. La bajan solo las placas con «Usar los permitidos de la comunidad».
+
+```json
+{"version":12,"dominios":["a.ejemplo.com","b.ejemplo.com"]}
+```
+
+- `version`: entero que sube cada vez que la lista cambia (aprobar o quitar); `0` si nunca cambió.
+  Sale de la tabla `permitidos_version`.
+- `dominios`: en orden alfabético, como mucho 500, cada uno con la misma regla que los reportes
+  (`esDominio`).
+- `Cache-Control: public, max-age=600`. Se guarda en la caché del borde con una llave fija (igual
+  que `/estadisticas`); aprobar o quitar borra la copia de ese borde, y las de los demás vencen
+  solas en 10 min.
+- No usa el límite por IP (igual que las otras rutas GET públicas): la caché la protege.
+
+### `POST /api/v1/dueno/permitidos` y `POST /api/v1/dueno/permitidos/quitar`
+Solo el dueño (mismo Access y JWT que el resumen, debajo). Cuerpo `{"dominio":"ads.ejemplo.com"}`,
+tope de 512 B. El dominio sigue la regla de los reportes; si no → **400** `datos`.
+
+- Aprobar: **200** `{"ok":true}` y una fila en `permitidos` con el día de hoy; si ya estaba, 200 sin
+  cambiar nada (la versión no sube). Con 500 sitios → **409** `tope` (el tope va en la misma
+  sentencia SQL, así dos aprobaciones a la vez no lo pasan).
+- Quitar: **200** `{"ok":true}`, también si no estaba (entonces la versión no sube).
+- Sin JWT válido → **403** `acceso`; con `Origin` de otra página → **403** `origen`.
+
 ### `GET /api/v1/dueno/resumen`
 Solo el dueño. Cloudflare Access protege `/dueno*` y `/api/v1/dueno/*`, y el Worker además revisa
 el JWT de Access (header `Cf-Access-Jwt-Assertion`): RS256 con las llaves de
@@ -816,13 +869,17 @@ vacías → **403** `acceso`.
 {"embudo":[{"paso":"entro","n":120},{"paso":"conecto","n":80},"…"],
  "temas":[{"tema":"no_instala","n":3},"…"],
  "motivos":[{"motivo":"pagina_no_abre","n":5},"…"],
- "bloqueos":[{"dominio":"ads.ejemplo.com","n":4}],
+ "bloqueos":[{"dominio":"ads.ejemplo.com","n":4,"aprobado":false}],
  "guiasFaltan":[{"fabricante":"proveedor","n":6}],
- "placasTotal":40}
+ "placasTotal":40,
+ "permitidos":[{"dominio":"tienda.ejemplo.com","desde":"2026-11-21"}]}
 ```
 
 - `embudo`, `temas` y `motivos`: últimos 30 días, en el orden de las listas fijas (con 0 si no hay).
-- `bloqueos`: los 50 dominios más reportados como "no debió bloquearse", de más a menos.
+- `bloqueos`: los 50 dominios más reportados como "no debió bloquearse", de más a menos; `aprobado`
+  dice si ya está en los permitidos de la comunidad.
+- `permitidos`: la lista de permitidos de la comunidad entera (en orden), con el día en que se
+  aprobó cada sitio.
 - `guiasFaltan`: reportes de módem con `menu=otro`, `fabricante=no-se` o `dns_ok` = no, por
   fabricante.
 - `placasTotal`: placas distintas en la tabla `placas`, que la limpieza diaria recorta a 400 días:
@@ -853,4 +910,5 @@ curl -s http://127.0.0.1:8787/api/v1/pais
 curl -s -X POST http://127.0.0.1:8787/api/v1/placa -H 'Content-Type: application/json' \
      -d '{"i":"000102030405060708090a0b0c0d0e0f","v":"dev","b":7}'
 curl -s http://127.0.0.1:8787/api/v1/estadisticas
+curl -s http://127.0.0.1:8787/api/v1/permitidos
 ```

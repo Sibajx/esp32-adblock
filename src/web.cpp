@@ -13,6 +13,7 @@
 #include <time.h>
 
 #include "cloud.h"
+#include "community_store.h"
 #include "config.h"
 #include "diagnose.h"
 #include "dns_names.h"
@@ -407,6 +408,7 @@ const char* verdictName(Verdict v) {
     case Verdict::kPaused: return "pausa";
     case Verdict::kBlockedSchedule: return "horario";
     case Verdict::kPausedDevice: return "pausa-aparato";
+    case Verdict::kAllowedCommunity: return "comunidad";
     default: return "ok";
   }
 }
@@ -1074,7 +1076,12 @@ void sendCloudStatus() {
   j += siblock::isNewer(st.latest, SIBLOCK_VERSION) ? "true" : "false";
   j += ",\"lastPing\":\"";
   j += cloud::pingName(st.lastPing);
-  j += "\"}";
+  community::Info ci = community::info();
+  j += "\",\"community\":";
+  j += st.community ? "true" : "false";
+  j += ",\"communityCount\":" + String(unsigned(ci.count));
+  j += ",\"communityUpdated\":" + String(unsigned(ci.updated));
+  j += "}";
   sendJson(200, j);
 }
 
@@ -1082,29 +1089,44 @@ void handleCloudGet() { sendCloudStatus(); }
 
 // Cada campo que venga debe ser 0 o 1; si alguno no lo es, no se cambia nada.
 void handleCloudPost() {
-  bool hasShare = bodyHas("share"), hasVer = bodyHas("versionCheck");
-  String share = bodyArg("share"), ver = bodyArg("versionCheck");
+  bool hasShare = bodyHas("share"), hasVer = bodyHas("versionCheck"), hasCom = bodyHas("community");
+  String share = bodyArg("share"), ver = bodyArg("versionCheck"), com = bodyArg("community");
   auto isBit = [](const String& v) { return v == "0" || v == "1"; };
-  if ((!hasShare && !hasVer) || (hasShare && !isBit(share)) || (hasVer && !isBit(ver)))
+  if ((!hasShare && !hasVer && !hasCom) || (hasShare && !isBit(share)) || (hasVer && !isBit(ver)) ||
+      (hasCom && !isBit(com)))
     return sendError(400, "datos");
   cloud::Status& st = cloud::status();
-  const bool oldVer = st.versionCheck;
+  const bool oldVer = st.versionCheck, oldCom = st.community;
+  // El 500 dice "no se cambió nada": si una falla, se deshacen las que ya se habían cambiado.
+  auto undo = [&](bool ver) {
+    if (ver && hasVer && st.versionCheck != oldVer && settings::setVersionCheck(oldVer)) st.versionCheck = oldVer;
+    if (hasCom && st.community != oldCom && settings::setCommunity(oldCom)) st.community = oldCom;
+  };
+  if (hasCom) {
+    bool on = com == "1";
+    if (!settings::setCommunity(on)) return sendError(500, "guardar");
+    st.community = on;
+  }
   // "Compartir" va al final: si algo falla antes, no cambia sin que la persona lo sepa.
   if (hasVer) {
     bool on = ver == "1";
-    if (!settings::setVersionCheck(on)) return sendError(500, "guardar");
+    if (!settings::setVersionCheck(on)) {
+      undo(false);
+      return sendError(500, "guardar");
+    }
     st.versionCheck = on;
-    if (!on) st.latest.clear();  // apagado no se avisa de nada
   }
   if (hasShare) {
     bool on = share == "1";
     if (!settings::setCloudShare(on)) {
-      // El 500 dice "no se cambió nada": se deshace el aviso de versión si se había cambiado.
-      if (hasVer && st.versionCheck != oldVer && settings::setVersionCheck(oldVer)) st.versionCheck = oldVer;
+      undo(true);
       return sendError(500, "guardar");
     }
     st.share = on;
   }
+  if (!st.versionCheck) st.latest.clear();  // apagado no se avisa de nada
+  // Apagada, los permitidos de la comunidad se borran de la RAM y de la flash.
+  if (hasCom && !st.community) community::clear();
   sendCloudStatus();
 }
 

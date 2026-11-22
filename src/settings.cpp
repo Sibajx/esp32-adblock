@@ -215,6 +215,8 @@ bool cloudShare() { return flagOn(NVS_CLOUD_SHARE); }
 bool setCloudShare(bool on) { return setFlag(NVS_CLOUD_SHARE, on); }
 bool versionCheck() { return flagOn(NVS_VER_CHECK); }
 bool setVersionCheck(bool on) { return setFlag(NVS_VER_CHECK, on); }
+bool community() { return flagOn(NVS_COMMUNITY); }
+bool setCommunity(bool on) { return setFlag(NVS_COMMUNITY, on); }
 
 bool relayBlock() { return gOpen && gPrefs.isKey(NVS_RELAY_BLOCK) && gPrefs.getUInt(NVS_RELAY_BLOCK, 0) == 1; }
 

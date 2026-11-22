@@ -331,6 +331,10 @@ test('estadisticas.html y dueno.html: lo que deben decir', () => {
   const d = leer('dueno.html');
   assert.match(d, /<meta name="robots" content="noindex">/);
   assert.ok(etiquetas(d, 'script').some((t) => atributo(t, 'src') === 'js/dueno.js'));
+  // Permitidos de la comunidad: lista para revisar y lista aprobada, sin <script> en línea.
+  for (const id of ['d-revisar', 's-permitidos', 'd-permitidos', 'd-permitidos-total', 'd-permitidos-estado']) assert.ok(ids(d).has(id), `falta #${id}`);
+  assert.ok(etiquetas(d, 'script').every((t) => atributo(t, 'src')), 'sin <script> en línea');
+  assert.doesNotMatch(d, /\son[a-z]+=/i, 'sin manejadores en línea');
 });
 
 test('index.html enlaza a las estadísticas', () => {

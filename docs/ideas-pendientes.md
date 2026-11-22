@@ -398,7 +398,12 @@ nuevas y la RAM al bajarlas (`docs/pruebas.md`, "Fase 5").
    (2.2), para armar una lista de permitidos de la comunidad. Mismo cuidado de privacidad.
    Hecho: botón «No debió bloquearse» en el panel (con "Compartir" encendido) y formulario en
    `site/reporte.html`; motivos fijos; uno por número y dominio; el dueño ve los 50 más
-   reportados. **Pendiente:** la lista de permitidos de la comunidad que la placa baje sola.
+   reportados.
+   ✅ **Lista de permitidos de la comunidad:** el dueño revisa los reportes en `dueno.html` y
+   aprueba o quita cada sitio (tope de 500); el Worker la publica en `GET /api/v1/permitidos`. La
+   placa la baja una vez al día solo con «Usar los permitidos de la comunidad» encendido (apagado de
+   fábrica), sin mandar nada. Funciona como «Permitir», pero tus reglas «Bloquear» ganan y no se
+   mezcla con «Mis reglas» ni con el respaldo.
 9. [ ] **Avisos por Telegram** al dueño (pendiente, no entró en la fase 3), opcional: "la placa se reinició", "la lista no se pudo
    actualizar", resumen semanal. Cada quien usa su propio bot; el token se guarda en la placa y
    nunca se muestra en el panel.

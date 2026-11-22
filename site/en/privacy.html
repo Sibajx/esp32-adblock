@@ -66,6 +66,12 @@
         even when «<span lang="es">Compartir datos anónimos</span>» (“Share anonymous data”) is off.
       </p>
       <p>
+        If you turn on «<span lang="es">Usar los permitidos de la comunidad</span>» (“Use the community
+        allowlist”), it also connects once a day to siblock.s-dev.win to download that list, even when
+        «<span lang="es">Compartir datos anónimos</span>» is off. It only asks for the list; it sends
+        nothing of yours, not even the install number.
+      </p>
+      <p>
         If you turn on the extra lists (scams, ads in Spanish), it also downloads them once a day from
         GitHub and adblockplus.org. It sends them nothing of yours; like any website, they see your
         home’s internet address.
@@ -129,6 +135,13 @@
         If you turn it on, SiBlock checks once a day whether there is a new version. It only asks for a
         public file; it sends nothing of yours.
       </p>
+      <h3>«<span lang="es">Usar los permitidos de la comunidad</span>» (Use the community allowlist)</h3>
+      <p>
+        If you turn it on, SiBlock downloads once a day a public list of sites that other homes reported
+        as “this shouldn’t have been blocked” and that we reviewed by hand, and stops blocking them (your
+        own sites in «<span lang="es">Bloquear</span>» always win). It only asks for the list, which is
+        the same for everyone; it sends nothing of yours and we don’t keep who asks for it. It comes off.
+      </p>
     </section>
 
     <section id="reportes" class="bloque" aria-labelledby="titulo-reportes">
@@ -155,6 +168,11 @@
       <p>
         These reports are not deleted over time: they are the guide that helps other people with their
         modem.
+      </p>
+      <p>
+        If we review a site from “this shouldn’t have been blocked” and approve it, its name goes into the
+        public community allowlist, with only the site name: not who reported it, how many times, or the
+        day.
       </p>
       <p>
         We <strong>never</strong> keep your IP, the MAC of your devices, your name or your location. To

@@ -11,6 +11,7 @@
 #else
 #include "../../../lib/siblock_core/cloud.h"
 #endif
+#include "community.h"
 
 namespace cloud {
 // kRejected: el servidor contestó 3xx, 4xx (salvo 429) o 5xx; kLimit: 429.
@@ -20,6 +21,10 @@ enum class Result : uint8_t { kOk, kNoNet, kRejected, kLimit };
 Result postJson(const char* path, const std::string& body);
 // GET de SIBLOCK_CLOUD_BASE/version.json (no manda nada nuestro). Lee como mucho 1024 B.
 bool fetchLatestVersion(std::string& out);
+// GET de SIBLOCK_CLOUD_BASE/api/v1/permitidos (no manda nada nuestro). Pasa el cuerpo de a pedazos
+// al parser, sin guardarlo entero, y corta pasado siblock::kCommunityMaxBody. true si llegó entero
+// con 200 (falta parser.finish() para saber si es válido).
+bool fetchCommunity(siblock::CommunityParser& parser);
 
 // Estado en RAM (se pierde al reiniciar; nada de esto va a la flash). Las opciones son una copia
 // de lo guardado en NVS: main.cpp las carga al arrancar y web.cpp las cambia tras guardarlas.
@@ -27,6 +32,7 @@ enum class Ping : uint8_t { kNever, kOk, kFail };
 struct Status {
   bool share = false;         // "Compartir datos anónimos"
   bool versionCheck = false;  // "Avisarme de versiones nuevas"
+  bool community = false;     // "Usar los permitidos de la comunidad"
   Ping lastPing = Ping::kNever;
   std::string latest;         // última versión publicada que se vio ("" = todavía no)
 };

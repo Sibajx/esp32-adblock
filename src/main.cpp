@@ -13,6 +13,7 @@
 #include "blocklist.h"
 #include "button.h"
 #include "cloud.h"
+#include "community_store.h"
 #include "config.h"
 #include "dns_server.h"
 #include "family_store.h"
@@ -67,8 +68,9 @@ static uint32_t lastHistorySave = 0, lastTopHalve = 0;
 // versión ("avisarme de versiones nuevas") tienen cada uno su calendario: el primero sale al
 // minuto de encender la opción (o de arrancar con ella encendida) y luego cada 24 h (+ hasta 1 h
 // al azar, para que no lleguen todas las placas a la vez); si falla, a la 1, 2, 4... h.
-static siblock::CloudSchedule pingSched, verSched;
-static bool pingOn = false, verOn = false;
+// «Usar los permitidos de la comunidad» tiene el mismo calendario.
+static siblock::CloudSchedule pingSched, verSched, comSched;
+static bool pingOn = false, verOn = false, comOn = false;
 
 static void watchCloud(uint32_t now) {
   cloud::Status& st = cloud::status();
@@ -79,6 +81,10 @@ static void watchCloud(uint32_t now) {
   if (st.versionCheck != verOn) {
     verOn = st.versionCheck;
     if (verOn) verSched.start(now);
+  }
+  if (st.community != comOn) {
+    comOn = st.community;
+    if (comOn) comSched.start(now);  // al apagarla, el panel ya borró la lista (community::clear)
   }
   // Nada sale mientras se baja la lista (la RAM para TLS es la misma) ni sin WiFi.
   if (updateRequested || blocklist.updating() || WiFi.status() != WL_CONNECTED) return;
@@ -102,6 +108,13 @@ static void watchCloud(uint32_t now) {
     if (ok) st.latest = latest;
     Serial.printf("[nube] versión publicada: %s\n", ok ? latest.c_str() : "no se pudo leer");
     verSched.done(ok, millis(), esp_random() % 3600000UL);
+    return;
+  }
+  if (comOn && comSched.due(now)) {
+    bool ok = community::refresh();
+    if (ok) Serial.printf("[nube] permitidos de la comunidad: %u\n", unsigned(community::info().count));
+    else Serial.println("[nube] permitidos de la comunidad: no se pudo leer");
+    comSched.done(ok, millis(), esp_random() % 3600000UL);
   }
 }
 
@@ -247,11 +260,13 @@ static void watchButton(uint32_t now) {
       portalPolicy.forceOpen(now);
       break;
     case siblock::ButtonAction::kFactoryReset:
-      // La configuración, los aparatos y horarios (/familia.txt) y la historia de las gráficas (dice
-      // a qué horas hay gente en casa). /list.bin y /custom.txt (tus reglas) se quedan. LittleFS ya está montado desde setup().
+      // La configuración, los aparatos y horarios (/familia.txt), la historia de las gráficas (dice
+      // a qué horas hay gente en casa) y los permitidos de la comunidad. /list.bin y /custom.txt
+      // (tus reglas) se quedan. LittleFS ya está montado desde setup().
       Serial.println("[boot] borrando la configuración");
       settings::factoryReset();
       family::erase();  // nombres de los aparatos y horarios (son datos de la familia)
+      community::clear();
       LittleFS.remove("/restore.tmp");
       LittleFS.remove(kHistoryFile);
       LittleFS.remove(kHistoryTmp);
@@ -329,12 +344,14 @@ void setup() {
   startClock();
 
   dns.setRelayBlock(settings::relayBlock());  // apagada de fábrica
-  cloud::status().share = settings::cloudShare();  // las dos apagadas de fábrica
+  cloud::status().share = settings::cloudShare();  // las tres apagadas de fábrica
   cloud::status().versionCheck = settings::versionCheck();
+  cloud::status().community = settings::community();
   loadHistory();
   lastHistorySave = lastTopHalve = millis();
   bool haveList = blocklist.begin();
   Serial.printf("[lista] guardada: %u dominios\n", unsigned(blocklist.count()));
+  community::begin(&blocklist);  // después de blocklist.begin() (crea el candado)
   family::begin();  // nombres y horarios (después de startWifi: la sal nueva sale de esp_random)
 
   if (!dns.begin(&blocklist, UPSTREAM_DNS_1, UPSTREAM_DNS_2)) {

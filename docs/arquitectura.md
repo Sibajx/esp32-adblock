@@ -50,9 +50,10 @@ listas opcionales, LED, ahorro y respaldo) en [Fase 5: uso diario en casa](#fase
 | `src/family_store.*` *(fase 5)* | Aparatos con nombre, pausas por aparato y horarios en la placa: tabla ARP → huella, `/familia.txt`, decisión para la tarea DNS |
 | `src/config.h` | Lo que se ajusta: tope, DNS de arriba, nombre (`siblock`, y `adblock` por compatibilidad), versión (`SIBLOCK_VERSION`), IP fija, anti-rebinding |
 | `src/certs.h` | CAs raíz fijas para validar HTTPS de las descargas y *(fase 3)* de `siblock.s-dev.win` |
-| `src/cloud.*` *(fase 3)* | Cliente HTTPS hacia el Worker (`postJson`, `fetchLatestVersion`) y el estado de la nube en RAM |
+| `src/cloud.*` *(fase 3)* | Cliente HTTPS hacia el Worker (`postJson`, `fetchLatestVersion`, `fetchCommunity`) y el estado de la nube en RAM |
+| `src/community_store.*` | Permitidos de la comunidad: bajarlos, guardarlos en `/comunidad.bin` y pasárselos a `BlockList` |
 | `lib/adblock_core/` | Lógica pura (parser DNS, hash, índice, reglas, caché, JSON), sin Arduino |
-| `lib/siblock_core/` | Lógica pura de SiBlock, sin Arduino: SHA-256 y PBKDF2 (`siblock_crypto`), base64 y validaciones (`siblock_text`), Improv (`improv`), botón, LED, ventana de creación y política del portal (`modes`); *(fase 2)* nombres especiales (`dns_names`), historia de 168 h y top de bloqueados (`usage`), aparatos que se saltan y diagnóstico (`diagnose`); *(fase 5)* aparatos, horarios y grupos (`family`), formato del respaldo (`backup`), catálogo de listas (`lists`), LED de estado (`modes`) y ahorro (`usage`) |
+| `lib/siblock_core/` | Lógica pura de SiBlock, sin Arduino: SHA-256 y PBKDF2 (`siblock_crypto`), base64 y validaciones (`siblock_text`), Improv (`improv`), botón, LED, ventana de creación y política del portal (`modes`); *(fase 2)* nombres especiales (`dns_names`), historia de 168 h y top de bloqueados (`usage`), aparatos que se saltan y diagnóstico (`diagnose`); *(fase 5)* aparatos, horarios y grupos (`family`), formato del respaldo (`backup`), catálogo de listas (`lists`), LED de estado (`modes`) y ahorro (`usage`); permitidos de la comunidad (`community`) |
 | `lib/WebServer/` | Copia parcheada del `WebServer` de Arduino con topes (ver `CAMBIOS.md`) |
 | `sim/` | Capa falsa de Arduino/FreeRTOS para correr `src/` en Linux |
 | `site/` | Página de instalación (estática, ESP Web Tools) |
@@ -114,6 +115,7 @@ menos importante.
 | *(Fase 5)* Caché IP → huella y pausas por aparato | ~0,5 KB (16 + 32 casillas) | siempre |
 | *(Fase 5)* Lectura del respaldo | hasta unos 24 KB (reglas y familia en un `Backup` temporal; estimado) | solo al revisar o aplicar un respaldo (`apply` pide ≥ 40 KB seguidos) |
 | Índice de la lista | 16 KB (4097 × 4 B) | siempre |
+| Permitidos de la comunidad | hasta 4 KB (500 × 8 B de huella) | solo con la opción encendida |
 | Caché DNS | hasta ~32 KB (64 × 512 B) | se vacía antes de actualizar y no se llena mientras se descarga ni con menos de 24 KB de RAM seguida |
 | Cola de consultas | 8 KB (16 × 512 B) | siempre |
 | TLS de una descarga | ~45 KB | durante la descarga |
@@ -149,6 +151,8 @@ no se acaba la flash.
 | *(Fase 3)* Reportes del panel sin firma | Un secreto en el firmware | El firmware es público: el secreto no probaría nada (ver [seguridad.md](seguridad.md#reportes-del-panel-sin-firma)) |
 | *(Fase 3)* Diagnóstico y número en el fragmento (`#diag=`, `#i=`) | Que la placa mande el diagnóstico o el correo | El fragmento no llega a ningún servidor; la placa nunca manda correos |
 | *(Fase 3)* Sin modelo de módem ni OUI | Leer la página del módem o la MAC | No hay lista de modelos con fuente; queda para la fase 4 |
+| Permitidos de la comunidad como huellas de 64 bits en un conjunto aparte | Sumarlos a las reglas propias | Caben 500 en 4 KB, no se mezclan con «Mis reglas» ni con el respaldo, y tu «Bloquear» gana siempre |
+| Leer la lista de la comunidad de a pedazos | Bajar el cuerpo entero (32 KB) a la RAM | Junto al TLS no siempre hay 32 KB seguidos; así basta un búfer de 256 B |
 
 ## Fase 1: configuración sin recompilar
 
@@ -318,12 +322,13 @@ flowchart LR
 | Aviso diario de la placa (`POST /api/v1/placa`) | **No** | El dueño, en el panel: "Compartir datos anónimos" |
 | Reportes desde el panel (`/api/report/*`) | **No** (409 sin la opción) | La misma opción; cada reporte lo manda la persona con un botón |
 | Consulta de versión (`GET /version.json`) | **No** | El dueño: "Avisarme de versiones nuevas" |
+| Permitidos de la comunidad (`GET /api/v1/permitidos`) | **No** | El dueño: "Usar los permitidos de la comunidad" |
 | Reportes desde la página | — | La persona, con el botón «Mandar» (y Turnstile) |
 | Contáctanos | — | La persona; el diagnóstico solo si marca adjuntarlo |
 | Embudo de la página (`/api/v1/paso`) | Sí, en la página | Contadores por día sin número ni cookies |
 | Web Analytics de la página | Solo si CI pone el token | Sin cookies; vacío = no se carga |
 
-Con las dos opciones apagadas, la placa se porta igual que en la fase 2: solo baja la lista y pide
+Con las tres opciones apagadas, la placa se porta igual que en la fase 2: solo baja la lista y pide
 la hora. Sin el Worker publicado, la placa y la página siguen funcionando (los reportes dan
 `sin_internet` o `rechazado`).
 
@@ -338,8 +343,8 @@ la hora. Sin el Worker publicado, la placa y la página siguen funcionando (los 
 - `src/cloud.*`: `WiFiClientSecure` con las raíces de `certs.h`, `useHTTP10`, sin redirecciones,
   8 s, `User-Agent: SiBlock/<versión>`. Si no hay WiFi o RAM seguida para TLS, no intenta.
 - `src/settings.*` / `config.h`: `SIBLOCK_CLOUD_BASE` (`https://siblock.s-dev.win`) y las claves
-  NVS `install_id`, `cloud_share`, `ver_check` (falta = apagado).
-- `src/main.cpp` (`watchCloud`): dos calendarios, `pingSched` y `verSched`, que arrancan al
+  NVS `install_id`, `cloud_share`, `ver_check`, `comunidad` (falta = apagado).
+- `src/main.cpp` (`watchCloud`): tres calendarios, `pingSched`, `verSched` y `comSched`, que arrancan al
   encender cada opción o al arrancar con ella encendida. Uno por vuelta de `loop()`, nunca mientras
   se baja la lista (comparten la RAM del TLS) ni sin hora de internet (el aviso diario necesita
   saber qué es "hoy"). `latest` y `lastPing` viven solo en RAM.
@@ -361,9 +366,10 @@ la hora. Sin el Worker publicado, la placa y la página siguen funcionando (los 
 | `src/reportes.ts`, `src/placas.ts` | Reportes de módem y bloqueo, `/pais`, aviso de placa, embudo |
 | `src/estadisticas.ts` | Estadísticas públicas con umbrales (país ≥ 5, módem ≥ 3) |
 | `src/access.ts`, `src/dueno.ts` | JWT de Access y resumen del dueño |
+| `src/permitidos.ts` | Lista pública de permitidos de la comunidad (con caché) y aprobar / quitar del dueño |
 | `src/contacto.ts`, `src/correo.ts` | Contáctanos, correo al dueño, respuesta automática, `sinHtml` |
 | `src/limpieza.ts` | Cron diario: borra conteos de más de 400 días |
-| `migrations/0001_inicial.sql` | Tablas de D1 |
+| `migrations/*.sql` | Tablas de D1 (`0002`: respuestas automáticas; `0003`: permitidos) |
 
 Bindings (`wrangler.toml`): `DB` (D1 `siblock`), `CORREO` (`send_email`), `LIMITE` (5 por
 minuto) y `LIMITE_CONTACTO` (2 por minuto). Variables: `ORIGEN`, `HOST_PAGINA`,
@@ -384,6 +390,8 @@ probarlos sin internet.
 | `pasos` | día y paso | contador |
 | `temas` | día y tema | contador |
 | `contacto_dia` | día | mensajes del día (para el tope de 200) |
+| `permitidos` | dominio aprobado | dominio y día en que el dueño lo aprobó (tope de 500) |
+| `permitidos_version` | — (una sola fila) | número que sube con cada cambio de `permitidos` |
 
 `instalacion` es siempre `SHA-256(ID_PEPPER ‖ número)` (32 hex). `dia` = días desde 1970 en UTC.
 Ninguna columna guarda una IP, una MAC, un nombre, un correo o un mensaje.

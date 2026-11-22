@@ -100,4 +100,52 @@ bool fetchLatestVersion(std::string& out) {
   return siblock::parseVersionJson(buf, n, out);
 }
 
+bool fetchCommunity(siblock::CommunityParser& parser) {
+  if (!canConnect()) return false;
+  WiFiClientSecure client;
+  client.setCACert(ROOT_CAS);
+  HTTPClient http;
+  setup(http);
+  if (!http.begin(client, SIBLOCK_CLOUD_BASE "/api/v1/permitidos")) return false;
+  int code = http.GET();
+  int size = http.getSize();  // -1 si no dice el tamaño
+  if (code != HTTP_CODE_OK || size > int(siblock::kCommunityMaxBody)) {
+    http.end();
+    return false;
+  }
+  char buf[256];  // de a pedazos: el cuerpo entero (hasta 32 KB) nunca está en la RAM
+  size_t n = 0;
+  bool ok = true, timedOut = true;
+  WiFiClient* s = http.getStreamPtr();
+  // 8 s sin datos o 30 s en total: el loop no se queda esperando a un servidor lento.
+  uint32_t start = millis(), last = start;
+  while (s && millis() - last < kTimeoutMs && millis() - start < 30000) {
+    if (size >= 0 && n >= size_t(size)) {
+      timedOut = false;
+      break;
+    }
+    int avail = s->available();
+    if (avail > 0) {
+      size_t want = sizeof buf;
+      if (size_t(avail) < want) want = size_t(avail);
+      int r = int(s->readBytes(reinterpret_cast<uint8_t*>(buf), want));
+      if (r <= 0) break;
+      n += size_t(r);
+      last = millis();
+      if (!parser.feed(buf, size_t(r))) {  // ya está mal (o pasó del tope): no se sigue leyendo
+        ok = false;
+        timedOut = false;
+        break;
+      }
+    } else if (!http.connected()) {
+      timedOut = false;
+      break;
+    } else {
+      delay(5);
+    }
+  }
+  http.end();
+  return ok && !timedOut && (size < 0 || n == size_t(size));
+}
+
 }  // namespace cloud

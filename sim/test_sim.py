@@ -764,16 +764,20 @@ def nube_opciones():
             check(len(iid) == 32 and all(c in "0123456789abcdef" for c in iid), f"installId de 32 hex ({iid})")
             check(st.get("current") == "dev" and st.get("latest") == "" and st.get("update") is False and
                   st.get("lastPing") == "never", f"current=dev, latest vacío, update=false, lastPing=never ({st})")
-            check(set(st) == {"share", "versionCheck", "installId", "current", "latest", "update", "lastPing"},
+            check(set(st) == {"share", "versionCheck", "installId", "current", "latest", "update", "lastPing",
+                              "community", "communityCount", "communityUpdated"},
                   f"solo las claves del contrato ({sorted(st)})")
+            check(st.get("community") is False and st.get("communityCount") == 0 and st.get("communityUpdated") == 0,
+                  f"permitidos de la comunidad apagados y vacíos ({st})")
             check(nube_estado(f, tok).get("installId") == iid and f.nvs().get("install_id") == iid,
                   "el número se guarda y no cambia")
             for malo in ({"share": "2"}, {"share": ""}, {"versionCheck": "si"}, {"share": "1", "versionCheck": "2"},
-                         {}, {"otra": "1"}):
+                         {}, {"otra": "1"}, {"community": "2"}, {"community": ""}, {"community": "1", "share": "x"}):
                 code, _, _ = f.http("POST", "/api/cloud", malo, token=tok)
                 check(code == 400, f"POST /api/cloud {malo} -> 400 ({code})")
             st = nube_estado(f, tok)
-            check(st.get("share") is False and st.get("versionCheck") is False and "cloud_share" not in f.nvs(),
+            check(st.get("share") is False and st.get("versionCheck") is False and st.get("community") is False and
+                  "cloud_share" not in f.nvs() and "comunidad" not in f.nvs(),
                   "tras los 400 todo sigue apagado y no se guardó nada")
             check(len(nube.lista()) == 0, "nada salió a la nube todavía")
 
@@ -971,7 +975,9 @@ def nube_panel():
                       "Una página no abre", "Una app no funciona", "Un juego no funciona",
                       "Internet o WAN", "Red local, LAN o DHCP", "Avanzado", "Otro o no lo encontré",
                       "SiBlock no pudo llegar a internet. Prueba más tarde.",
-                      "Mandaste muchos seguidos. Espera un minuto.", "No se pudo guardar. Prueba más tarde."):
+                      "Mandaste muchos seguidos. Espera un minuto.", "No se pudo guardar. Prueba más tarde.",
+                      "Usar los permitidos de la comunidad", 'id="comst"', "permitido por la comunidad",
+                      "Tus sitios en «Bloquear» siempre ganan"):
             check(texto in page, f"la página trae «{texto[:60]}»")
         for fab in ("tp-link", "huawei", "zte", "technicolor", "arris", "netgear", "asus", "mikrotik", "proveedor", "no-se"):
             check(f'value="{fab}"' in page, f"el formulario trae el fabricante {fab}")
@@ -1001,10 +1007,14 @@ def nube_borrar():
         f = Fresh(nvs=SEED_WIFI, env=env)
         try:
             tok = crear_clave(f, "clave-de-la-nube-3")
-            code, body, _ = f.http("POST", "/api/cloud", {"share": "1", "versionCheck": "1"}, token=tok)
+            code, body, _ = f.http("POST", "/api/cloud", {"share": "1", "versionCheck": "1", "community": "1"}, token=tok)
             st = json.loads(body) if code == 200 else {}
-            check(st.get("share") is True and st.get("versionCheck") is True, f"las dos opciones encendidas ({code})")
+            check(st.get("share") is True and st.get("versionCheck") is True and st.get("community") is True,
+                  f"las tres opciones encendidas ({code})")
             viejo = st.get("installId", "")
+            # Una lista de la comunidad ya guardada (como si se hubiera bajado).
+            with open(os.path.join(f.dir, "comunidad.bin"), "wb") as fh:
+                fh.write(b"SBC1" + bytes(12))
             f.press(True)
             time.sleep(0.5)
             f.set_clock(11000)
@@ -1015,14 +1025,15 @@ def nube_borrar():
             f.press(False)
             check(rc == 3, f"BOOT 10 s borra la configuración y reinicia (código {rc})")
             nvs = f.nvs()
-            check(not {"install_id", "cloud_share", "ver_check"} & set(nvs), f"NVS sin opciones de nube ({sorted(nvs)})")
+            check(not {"install_id", "cloud_share", "ver_check", "comunidad"} & set(nvs), f"NVS sin opciones de nube ({sorted(nvs)})")
+            check(not os.path.exists(os.path.join(f.dir, "comunidad.bin")), "y sin /comunidad.bin")
             antes = len(nube.lista())
             with Fresh(dir=f.dir, env=env) as g:
                 tok = crear_clave(g, "clave-de-la-nube-4")
                 st = nube_estado(g, tok)
                 nuevo = st.get("installId", "")
-                check(st.get("share") is False and st.get("versionCheck") is False,
-                      f"tras borrar: share:false y versionCheck:false ({st})")
+                check(st.get("share") is False and st.get("versionCheck") is False and st.get("community") is False and
+                      st.get("communityCount") == 0, f"tras borrar: share, versionCheck y community apagados ({st})")
                 check(len(nuevo) == 32 and nuevo != viejo, f"installId distinto ({viejo[:8]}… -> {nuevo[:8]}…)")
                 check(st.get("latest") == "" and st.get("lastPing") == "never", "latest y lastPing vuelven a cero")
                 adelantar(g, 11000, 25)
@@ -1049,6 +1060,107 @@ def nube_guardar_falla():
             check(code == 200 and json.loads(body).get("versionCheck") is True, f"solo versionCheck sí se guarda ({code})")
 
 
+def nube_comunidad():
+    print("\n18f. Permitidos de la comunidad")
+    lista = {"version": 3, "dominios": ["doubleclick.net", "otro.ejemplo.com"]}
+    with NubeFalsa() as nube:
+        env = {"SIM_CLOUD_URL": nube.url}
+        nube.respuestas["/api/v1/permitidos"] = (200, json.dumps(lista))
+        f = Fresh(nvs=SEED_WIFI, env=env)
+
+        def respuesta(placa, name):
+            try:
+                r = dns.query.udp(dns.message.make_query(name, "A"), "127.0.0.1", port=placa.dns_port, timeout=4)
+            except dns.exception.Timeout:
+                return None
+            return addrs(r)
+
+        def bloqueado(placa, name="doubleclick.net"):
+            return respuesta(placa, name) == ["0.0.0.0"]
+
+        def pasa(placa, name="doubleclick.net"):
+            a = respuesta(placa, name)
+            return a is not None and a != ["0.0.0.0"]
+
+        def veredictos(placa, tok, name):
+            code, body, _ = placa.http("GET", "/api/detail", token=tok)
+            return [r.get("v") for r in json.loads(body).get("recent", []) if r.get("d") == name] if code == 200 else []
+
+        try:
+            tok = crear_clave(f, "clave-comunidad-1")
+            check(bloqueado(f), "de fábrica doubleclick.net está bloqueado (está en la lista)")
+            code, body, _ = f.http("POST", "/api/cloud", {"community": "1"}, token=tok)
+            st = json.loads(body) if code == 200 else {}
+            check(code == 200 and st.get("community") is True and st.get("share") is False,
+                  f"community=1 -> 200 sin encender «compartir» ({code} {body})")
+            check(f.nvs().get("comunidad") == "1", "comunidad=1 en NVS")
+            time.sleep(1)
+            check(not nube.a("/api/v1/permitidos"), "al encender no sale nada enseguida (va al minuto)")
+            check(bloqueado(f), "sin la lista bajada, sigue bloqueado")
+            t = 61000
+            f.set_clock(t)
+            check(esperar(lambda: nube.a("/api/v1/permitidos")), "a los 61 s pide GET /api/v1/permitidos")
+            ps = nube.a("/api/v1/permitidos")
+            if ps:
+                p = ps[0]
+                iid = nube_estado(f, tok).get("installId", "")
+                check(p["metodo"] == "GET" and p["cuerpo"] == b"", "GET sin cuerpo")
+                check(iid and iid not in json.dumps(p["headers"]) and iid not in p["ruta"], "sin el número de instalación")
+                check(p["headers"].get("user-agent", "").startswith("SiBlock/"), "User-Agent SiBlock/…")
+            check(not nube.a("/api/v1/placa") and not nube.a("/version.json"), "y nada más sale")
+            check(esperar(lambda: pasa(f)), "con la opción, doubleclick.net ya no se bloquea")
+            check(pasa(f, "ad.doubleclick.net"), "y sus subdominios tampoco")
+            check("comunidad" in veredictos(f, tok, "doubleclick.net"),
+                  f"el registro dice «comunidad», no «permitido» ({veredictos(f, tok, 'doubleclick.net')})")
+            check("permitido" not in veredictos(f, tok, "doubleclick.net"), "y no dice que lo permitiste tú")
+            st = nube_estado(f, tok)
+            check(st.get("communityCount") == 2 and st.get("communityUpdated", 0) > 1700000000,
+                  f"communityCount=2 y communityUpdated con la hora ({st.get('communityCount')}, {st.get('communityUpdated')})")
+            check(os.path.getsize(os.path.join(f.dir, "comunidad.bin")) == 16 + 2 * 8, "/comunidad.bin con 2 huellas")
+            reglas = json.loads(f.http("GET", "/api/rules", token=tok)[1])
+            check(reglas == {"blocked": [], "allowed": []}, f"no aparecen en «Mis reglas» ({reglas})")
+            code, texto, _ = f.http("GET", "/api/backup", token=tok)
+            check(code == 200 and "doubleclick" not in texto and "otro.ejemplo.com" not in texto, "ni en el respaldo")
+
+            # Tu regla «Bloquear» gana (también sobre un padre).
+            check(f.http("POST", "/api/rules", {"action": "block", "domain": "doubleclick.net"}, token=tok)[0] == 200,
+                  "regla propia: bloquear doubleclick.net")
+            check(bloqueado(f) and bloqueado(f, "ad.doubleclick.net"), "tu «Bloquear» gana sobre la comunidad")
+            check("tuyo" in veredictos(f, tok, "doubleclick.net"), "y el registro dice «tuyo»")
+            check(f.http("POST", "/api/rules", {"action": "remove", "domain": "doubleclick.net"}, token=tok)[0] == 200,
+                  "quitar la regla")
+            check(pasa(f), "sin tu regla vuelve a pasar")
+
+            # Una lista mala no se usa: queda la de antes.
+            nube.respuestas["/api/v1/permitidos"] = (200, '{"version":4,"dominios":["NO VALE"]}')
+            t += 25 * 3600000
+            f.set_clock(t)
+            check(esperar(lambda: len(nube.a("/api/v1/permitidos")) == 2), "al día siguiente la pide otra vez")
+            time.sleep(0.5)
+            tok = entrar(f, "clave-comunidad-1")
+            check(nube_estado(f, tok).get("communityCount") == 2 and pasa(f),
+                  "una lista mal formada se rechaza entera y queda la anterior")
+
+            # Sobrevive a un reinicio (aunque la nube no conteste).
+            nube.respuestas["/api/v1/permitidos"] = (500, '{"error":"interno"}')
+            detener(f)
+            with Fresh(dir=f.dir, env=env) as g:
+                check(pasa(g), "tras reiniciar, la lista guardada se usa enseguida")
+                tok = entrar(g, "clave-comunidad-1")
+                check(nube_estado(g, tok).get("communityCount") == 2, "communityCount=2 tras reiniciar")
+                code, body, _ = g.http("POST", "/api/cloud", {"community": "0"}, token=tok)
+                st = json.loads(body) if code == 200 else {}
+                check(code == 200 and st.get("community") is False and st.get("communityCount") == 0,
+                      f"community=0 -> 200 y lista vacía ({body})")
+                check(bloqueado(g), "apagada: doubleclick.net vuelve a bloquearse")
+                check(not os.path.exists(os.path.join(g.dir, "comunidad.bin")), "y /comunidad.bin se borra")
+                antes = len(nube.a("/api/v1/permitidos"))
+                adelantar(g, t, 25)
+                check(len(nube.a("/api/v1/permitidos")) == antes, "apagada: 25 h sin pedir la lista")
+        finally:
+            f.close()
+
+
 def nube():
     """Sección 18: la nube (Worker de mentira)."""
     nube_apagada()
@@ -1057,6 +1169,7 @@ def nube():
     nube_panel()
     nube_borrar()
     nube_guardar_falla()
+    nube_comunidad()
 
 
 # ---------- Fase 5: aparatos de la familia ----------

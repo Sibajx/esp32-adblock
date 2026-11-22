@@ -107,6 +107,17 @@ make -C test_host test       # compila con -Werror, AddressSanitizer y UBSan; co
 - `testStatusLed` (`modes.*`): `ledStateFor` (5 casos) y `ledOn` en 0, 199, 200, 999 y 1000 ms;
 - `testSavings` (`usage.*`): 168 horas con 10 bloqueadas → `168 × 10 × 30 720` bytes; vacías → 0.
 
+Permitidos de la comunidad, `testCommunity` (`community.*`): FNV-1a de 64 bits contra valores
+conocidos; el JSON del Worker leído entero, de a 1 byte y de a 3 (mismo resultado, sin repetidos,
+ordenado); sitio y subdominios sí, padre y parecidos (`aa.ejemplo.com`, `a.ejemplo.com.mx`) no;
+lista vacía, espacios, claves de más que se saltan; más de 30 cuerpos malos que se rechazan enteros
+(sin cerrar, basura después, comas de más, versión como texto, negativa, con cero delante, decimal o
+de 4294967296, claves repetidas, `dominios` que no es lista, número dentro, mayúsculas, `com`, `a..com`,
+espacio, escapes `\u`, objeto o lista en una clave de más, control dentro de un texto); texto de 400
+en una clave de más sí, dominio de 254 no; 500 sitios sí y 501 no; 32 KB justos sí y uno más no; lo
+que llega después de un error no lo arregla; `/comunidad.bin` ida y vuelta, vacío, y cortado, de
+más, otra cabecera, desordenado, repetido o con 501 → se ignora.
+
 `list_stats` es una herramienta aparte: cuenta dominios únicos de las listas reales y calcula
 falsos positivos.
 
@@ -219,8 +230,16 @@ pkill -x esp32-sim                              # nunca pkill -f
     limpio; nube en 429 → 502 `limite`, nube caída → 502 `sin_internet`, sin sesión → 401;
     18c. panel: trae «Compartir con SiBlock», el aviso completo, «No debió bloquearse»,
     `reporte.html#i=` y `contacto.html#diag=`, la CSP no cambió y no hay `<script>` nuevo;
-    18d. borrar la configuración (BOOT 10 s) apaga las dos opciones, cambia el `installId` y
-    deja 25 h sin peticiones.
+    18d. borrar la configuración (BOOT 10 s) apaga las tres opciones, borra `/comunidad.bin`,
+    cambia el `installId` y deja 25 h sin peticiones; 18e. si no se puede guardar "compartir", no
+    cambia nada;
+    18f. permitidos de la comunidad: `community=1` (sin encender «compartir») → al minuto
+    `GET /api/v1/permitidos` sin cuerpo ni número; `doubleclick.net` (en la lista) y sus
+    subdominios pasan, y el registro dice `comunidad` y no `permitido`; `communityCount` y
+    `communityUpdated`; `/comunidad.bin` con 2 huellas; no salen en `/api/rules` ni en el
+    respaldo; tu «Bloquear» gana (y dice `tuyo`) y al quitarlo vuelve a pasar; una lista mal
+    hecha se rechaza y queda la anterior; tras reiniciar (con la nube en 500) se usa la guardada;
+    `community=0` vuelve a bloquear, borra el archivo y deja 25 h sin pedir la lista.
 
 19. *(fase 5)* aparatos y horarios sin rutas: carpeta preparada a mano (`familia.txt` con sal
     `00…0f`, `Tele` en la casilla 0 y un horario "todo internet" en la hora actual); `example.com`
@@ -390,7 +409,10 @@ cd site && npm test     # = node --test tests/*.test.mjs: instalar.js, improv-li
 - `contacto.test.mjs`: `#diag=` bueno, roto, enorme o con claves de más (`ip` se quita), códigos
   con HTML fuera; correo con `\r\nBcc:` y mensaje de 9 caracteres rechazados;
 - `graficas.test.mjs`: barras en SVG (sin datos → «Todavía no hay datos.»), nombres con `<script>`
-  como texto, semanas cortas; la guía del router elige el país que da `/api/v1/pais`;
+  como texto, semanas cortas; la guía del router elige el país que da `/api/v1/pais`; panel del
+  dueño: «Aprobar» o «Quitar» por sitio reportado (un nombre raro no se puede aprobar), la lista de
+  permitidos con «Quitar», `esDominio` igual al del Worker, el pedido (`same-origin`, sin seguir
+  redirecciones), los errores (`tope`, sesión vencida, sin red) y que tras aprobar se vuelve a cargar;
 - `paginas.test.mjs` suma: todas las páginas cargan `js/inicio.js`, enlazan a
   `privacidad.html` y la CSP tiene los orígenes de Web Analytics y Turnstile.
 
@@ -429,6 +451,7 @@ crean en una D1 local con las migraciones de `cloud/migrations/`.
 | `placas.test.ts` | Bloqueo en mayúsculas → 400, uno por número y dominio, aviso de placa (el último del día gana), `b` y `v` malos, embudo que suma |
 | `estadisticas.test.ts` | Umbral de 5 por país y `otros`, placa de hace 7 días fuera, umbral de 3 por módem, `otro` y `dns_ok:0` fuera, siempre 12 semanas |
 | `access.test.ts`, `dueno.test.ts` | JWT con un par RSA de prueba: bueno, vencido, otra `aud`, otro `iss`, otra llave, `alg:none`, sin header, variables vacías; resumen en orden y top 50 |
+| `permitidos.test.ts` | Lista pública vacía (versión 0, `public, max-age=600`, sin cookies), en orden y con la versión que sube; caché del borde que se borra al aprobar; aprobar y quitar sin JWT o con `Origin` ajeno → 403; aprobar dos veces no sube la versión; dominios malos → 400; tope de 500 → 409 `tope` (uno que ya estaba sí); 513 B → 413; quitar uno que no estaba → 200; resumen con `aprobado` y la lista con su fecha |
 | `contacto.test.ts` | Dos correos (dueño y respuesta), asunto sin texto de la persona, sin `<script>`, respuesta sin nombre ni mensaje, correo con `\r\n`, mensaje de 9 o 2001, tema raro, sin Turnstile, tope de 200, respuesta apagada, correo que falla → 500 sin contar, `sinHtml` |
 | `limpieza.test.ts` | Filas de hace 401 días se borran, las de 399 se quedan |
 

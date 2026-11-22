@@ -199,7 +199,7 @@ Para que cualquiera de la casa use "Algo no funciona" sin la contraseña.
 
 Diseño: "Fase 3 en detalle" de [`superpowers/specs/2026-11-21-siblock-design.md`](superpowers/specs/2026-11-21-siblock-design.md);
 plan: [`superpowers/plans/2026-11-21-siblock-fase-3.md`](superpowers/plans/2026-11-21-siblock-fase-3.md).
-Pruebas: `sim/test_sim.py` (18 a 18d), `test_host` y `cd cloud && npm test`. Rutas en
+Pruebas: `sim/test_sim.py` (18 a 18f), `test_host` y `cd cloud && npm test`. Rutas en
 [api.md](api.md#worker-siblock-api-fase-3).
 
 ### La placa habla con internet solo si el dueño quiere
@@ -207,8 +207,9 @@ Pruebas: `sim/test_sim.py` (18 a 18d), `test_host` y `cd cloud && npm test`. Rut
 Es lo que más puede morder: SiBlock ve todo lo que se visita en la casa.
 
 - Fuera de bajar la lista y pedir la hora, la placa solo sale a internet con **"Compartir datos
-  anónimos"** (aviso diario y reportes) o **"Avisarme de versiones nuevas"** (consulta de
-  `version.json`). Las dos están **apagadas de fábrica**.
+  anónimos"** (aviso diario y reportes), **"Avisarme de versiones nuevas"** (consulta de
+  `version.json`) o **"Usar los permitidos de la comunidad"** (consulta de `/api/v1/permitidos`).
+  Las tres están **apagadas de fábrica**.
 - Solo el valor `1` guardado en la NVS las enciende. Si la clave falta, vale `2` o la NVS no se
   puede leer → apagada. El simulador lo prueba: 25 h de reloj con la NVS vacía, y otras 25 h con
   `cloud_share=2` y `ver_check=2` escritos a mano, sin **ninguna** petición al Worker de mentira.
@@ -218,7 +219,33 @@ Es lo que más puede morder: SiBlock ve todo lo que se visita en la casa.
   consulta de versión es un `GET` **sin cuerpo ni número**, a un archivo fijo. Los reportes del
   panel llevan solo valores de listas fijas (y el dominio reportado, validado). Nunca la IP de un
   aparato, la MAC, nombres ni qué se visita.
-- "Borrar la configuración" apaga las dos y cambia el número (prueba 18d).
+- "Borrar la configuración" apaga las tres, borra `/comunidad.bin` y cambia el número (prueba 18d).
+
+### Permitidos de la comunidad
+
+Una lista que llega de afuera y **deja pasar** dominios: si alguien la controlara, podría hacer que
+todas las casas que la usan vuelvan a ver un sitio de anuncios o de estafas. Cómo se cubre:
+
+- **Qué sale de la placa: nada.** Es un `GET https://siblock.s-dev.win/api/v1/permitidos` sin cuerpo,
+  sin número de instalación y sin cookies, igual para todas las placas (prueba 18f). El Worker no
+  guarda nada de quien la pide y la sirve desde la caché del borde.
+- **Revisión del dueño.** Un reporte «No debió bloquearse» nunca entra solo a la lista: el dueño lo
+  aprueba a mano en `dueno.html`, detrás de Cloudflare Access **y** del JWT revisado en el Worker
+  (`POST /api/v1/dueno/permitidos` y `/quitar`; 403 sin JWT válido, 403 con `Origin` de otra página).
+  Muchos reportes falsos de un sitio de anuncios solo lo suben en la lista para revisar.
+- **Topes y validación, todo o nada.** El Worker acepta solo dominios con la misma regla que los
+  reportes (`esDominio`) y como mucho 500 (409 `tope`). La placa vuelve a revisar todo: cuerpo de
+  32 KB como mucho, leído de a pedazos (nunca entero en la RAM), JSON estricto, versión entera,
+  cada dominio con `validReportDomain` y 500 como mucho. Si algo no cuadra se rechaza la lista
+  entera y se queda la anterior (pruebas en `test_host` y 18f).
+- **Lo tuyo gana.** Tus reglas «Bloquear» se revisan antes que la comunidad (también si bloqueas
+  el dominio de arriba). La comunidad **no** salta la protección anti-rebinding: eso solo lo hace tu
+  «Permitir». En las consultas recientes sale como `comunidad`, nunca como `permitido` (lo tuyo).
+- **Aparte de tus reglas.** En la placa solo hay huellas de 64 bits (FNV-1a) en RAM y en
+  `/comunidad.bin` (≤ 4016 B, guardado atómico); no salen en «Mis reglas» ni en el respaldo. Apagar
+  la opción o borrar la configuración la borra.
+- Riesgo que queda: si alguien entra a la cuenta de Cloudflare del dueño o a su correo (Access),
+  puede aprobar sitios. Lo limita el tope de 500 y que cada casa decide si usa la lista.
 
 ### Número de instalación
 
@@ -304,7 +331,10 @@ poner el correo de otra persona para que SiBlock le mande correos.
   JWT: RS256 (rechaza `alg:none` y otros), llave del equipo por `kid`, `aud` = `ACCESS_AUD`,
   `iss` = `ACCESS_TEAM_DOMAIN`, `exp` y `nbf` con 60 s de holgura. Si faltan las variables → 403
   siempre (falla cerrado).
-- El resumen solo trae conteos y los dominios reportados; nada de IPs ni números.
+- El resumen solo trae conteos, los dominios reportados (y si ya están aprobados) y la lista de
+  permitidos; nada de IPs ni números.
+- Aprobar y quitar permitidos son POST: además de Access y el JWT, piden `Origin` de la página (o
+  ninguno), así otra página no puede usar la sesión del dueño.
 
 ### Límites sin guardar la IP
 
@@ -463,6 +493,9 @@ vende la placa no deja los nombres de su familia. Las reglas propias se quedan, 
 - *(Fase 3)* **Los reportes de módem y de bloqueos no se borran con el tiempo** (los conteos sí, a
   los 400 días): son la guía de la comunidad. Llevan país, proveedor, opciones fijas, el día y el
   número pasado por SHA-256; nada que identifique una casa sin la pimienta.
+- **Una lista de permitidos aprobada por error** deja pasar ese sitio en las casas que usan la
+  opción hasta que el dueño lo quite (un día como mucho para que las placas lo vean). Se acepta:
+  la opción está apagada de fábrica y «Bloquear» de cada casa gana.
 - *(Fase 3)* **Los certificados de Cloudflare en el ESP32 están sin probar**: la placa suma GTS
   Root R1/R4 y SSL.com TLS 2022 (RSA/ECC) por si Cloudflare cambia de emisor (falta verificar con
   la placa). Si fallan, la placa da `sin_internet`/`lastPing:"fail"`; no afecta al DNS.

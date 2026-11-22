@@ -21,6 +21,7 @@ enum class Verdict : uint8_t {
   kPaused,         // el bloqueo está en pausa
   kBlockedSchedule,  // un horario de la familia lo bloquea para este aparato
   kPausedDevice,     // la lista lo bloquearía, pero este aparato está en pausa
+  kAllowedCommunity, // la lista lo bloquearía, pero está en los permitidos de la comunidad
 };
 inline bool isBlockedVerdict(Verdict v) {
   return v == Verdict::kBlockedList || v == Verdict::kBlockedCustom || v == Verdict::kBlockedSchedule;
@@ -43,6 +44,10 @@ class BlockList {
   // puede guardar, quedan las de antes.
   bool replaceRules(const std::vector<std::string>& block, const std::vector<std::string>& allow);
 
+  // Permitidos de la comunidad: huellas de siblock::communityHash, ordenadas (vacío = ninguno).
+  // Van aparte de las reglas propias: no se guardan en /custom.txt ni salen en el respaldo.
+  void setCommunity(std::vector<uint64_t> keys);
+
   // Pausa: 0 segundos = reanudar.
   void pause(uint32_t seconds);
   uint32_t pausedSecondsLeft() const;
@@ -63,10 +68,11 @@ class BlockList {
   void cleanupTemp();
   bool saveRules();
 
-  SemaphoreHandle_t mutex_ = nullptr;   // protege index_, file_, rules_, lastError_
+  SemaphoreHandle_t mutex_ = nullptr;   // protege index_, file_, rules_, community_, lastError_
   std::unique_ptr<uint32_t[]> index_;
   fs::File file_;
   adblock::CustomRules rules_;
+  std::vector<uint64_t> community_;
   volatile uint32_t count_ = 0;
   volatile uint32_t lastUpdateMs_ = 0;
   volatile bool everUpdated_ = false;

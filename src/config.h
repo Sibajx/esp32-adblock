@@ -76,3 +76,7 @@ static const char* const ALLOWLIST[] = {
 #define NVS_CLOUD_SHARE "cloud_share"
 // "Avisarme de versiones nuevas": u32; solo 1 cuenta como encendida.
 #define NVS_VER_CHECK "ver_check"
+// "Usar los permitidos de la comunidad": u32; solo 1 cuenta como encendida. Con ella, la placa baja
+// una vez al día SIBLOCK_CLOUD_BASE "/api/v1/permitidos" (no manda nada) y la guarda en
+// /comunidad.bin. Apagarla o "borrar la configuración" borra esa lista.
+#define NVS_COMMUNITY "comunidad"

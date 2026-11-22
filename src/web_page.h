@@ -34,7 +34,7 @@ table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}th,t
 select{font:inherit;font-size:16px;padding:7px 12px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--fg);min-height:44px;max-width:100%}
 .fld{display:grid;gap:4px}.fld>span{font-size:14px}#upd{margin:0 0 12px;border-color:var(--warn)}#rep,#esc{display:inline-block;padding:10px 0}.nb{display:flex;flex-wrap:wrap;gap:6px;align-items:center;width:100%}
 footer{color:var(--mut);font-size:12px;margin:28px 0 8px}
-.horario{color:var(--acc)}.pausa-aparato{color:var(--warn)}.dv{flex-wrap:wrap}.dv .d small{display:block;color:var(--mut);font-size:13px}
+.horario{color:var(--acc)}.pausa-aparato{color:var(--warn)}.comunidad{color:var(--ok)}.dv{flex-wrap:wrap}.dv .d small{display:block;color:var(--mut);font-size:13px}
 .me{font-size:12px;font-weight:600;color:var(--ok);margin-left:6px}.days{display:flex;gap:2px;flex-wrap:wrap}.days .chk{min-width:42px;gap:3px}
 fieldset{border:0;padding:0;margin:0;display:grid;gap:4px}legend{font-size:14px;padding:0;margin-bottom:4px}
 </style></head><body>
@@ -111,6 +111,9 @@ fieldset{border:0;padding:0;margin:0;display:grid;gap:4px}legend{font-size:14px;
 <span class="l">Si lo activas, tu SiBlock manda a siblock.s-dev.win una vez al día un número al azar de esta instalación (no dice quién eres), la versión de SiBlock y cuántos anuncios quitó ese día. Y, solo cuando tú lo mandes, la marca de tu módem, si pudiste cambiar el DNS y en qué menú, o el sitio que no debió bloquearse. Nunca manda tu IP, la MAC, nombres de aparatos ni qué sitios visitas. El servidor ve tu país y tu compañía de internet por la conexión, pero no guarda tu IP. Con esta opción apagada, SiBlock no manda nada tuyo a siblock.s-dev.win (solo revisa si hay versión nueva, si activas «Avisarme de versiones nuevas»).</span>
 <label class="chk"><input type="checkbox" id="vchk"><span>Avisarme de versiones nuevas</span></label>
 <span class="l">Si lo activas, SiBlock revisa una vez al día si hay una versión nueva. Solo pide un archivo público; no manda nada tuyo.</span>
+<label class="chk"><input type="checkbox" id="com"><span>Usar los permitidos de la comunidad</span></label>
+<span class="l">Si lo activas, SiBlock baja una vez al día la lista de sitios que otras casas reportaron con «No debió bloquearse» y que revisamos a mano, y deja de bloquearlos. Solo pide un archivo público; no manda nada tuyo. Tus sitios en «Bloquear» siempre ganan, y la lista no se mezcla con «Mis reglas».</span>
+<span id="comst" class="l" hidden></span>
 <div id="nmsg" class="l" aria-live="polite"></div>
 <h2 style="margin:8px 0 0">¿Qué módem tienes?</h2>
 <span class="l">Ayuda a que otras personas con tu compañía de internet sepan dónde cambiar el DNS. Necesita «Compartir datos anónimos».</span>
@@ -236,7 +239,7 @@ async function tick(){
 }
 async function detail(){
  try{const s=await get('/api/detail');
-  const ul=$('rec');const tags={lista:'bloqueo',tuyo:'bloqueo tuyo',permitido:'permitido',pausa:'en pausa',horario:'horario','pausa-aparato':'aparato en pausa',ok:'pasó'};
+  const ul=$('rec');const tags={lista:'bloqueo',tuyo:'bloqueo tuyo',permitido:'permitido',pausa:'en pausa',horario:'horario','pausa-aparato':'aparato en pausa',comunidad:'permitido por la comunidad',ok:'pasó'};
   ul.replaceChildren(...(s.recent.length?s.recent.map(r=>{const li=el('li');li.append(el('span','tag '+r.v,tags[r.v]||r.v),el('span','d',r.d),el('span','ip',devNames[r.c]||r.c));return li}):[el('li','l','Todavía no hay consultas.')]));
   const ago=t=>t<60?t+' s':t<3600?Math.floor(t/60)+' min':Math.floor(t/3600)+' h';
   const by=s.bypass||[],K={doh:'DNS cifrado',relay:'Private Relay'};$('saltan').hidden=!by.length;
@@ -413,14 +416,16 @@ const NMSG={sin_internet:'SiBlock no pudo llegar a internet. Prueba más tarde.'
  rechazado:'No se pudo guardar. Prueba más tarde.',apagado:'Primero activa «Compartir datos anónimos».',
  ocupado:'Espera a que termine el envío anterior.',datos:'Revisa lo que elegiste.',guardar:'No se pudo guardar; prueba otra vez.'};
 const nerr=e=>NMSG[e.message]||e.message;
-function pintaNube(){if(!nube)return;$('share').checked=!!nube.share;$('vchk').checked=!!nube.versionCheck;
+function pintaNube(){if(!nube)return;$('share').checked=!!nube.share;$('vchk').checked=!!nube.versionCheck;$('com').checked=!!nube.community;
+ const cu=nube.communityUpdated>0?' · revisada el '+new Date(nube.communityUpdated*1000).toLocaleDateString():'';$('comst').hidden=!nube.community;
+ $('comst').textContent=!nube.community?'':nube.communityUpdated||nube.communityCount?'Sitios permitidos por la comunidad: '+fmt(nube.communityCount|0)+cu:'Todavía no se bajó la lista: tarda un par de minutos.';
  $('upd').hidden=!nube.update;$('updv').textContent=nube.latest||'';
  if(/^[0-9a-f]{32}$/.test(nube.installId||''))$('rep').href=NUBE+'reporte.html#i='+nube.installId}
 async function cargaNube(){if(!tk)return;try{nube=await get('/api/cloud');pintaNube()}catch(e){}}
 async function opcionNube(campo,c){const on=c.checked;$('nmsg').textContent='';
  try{nube=await post('/api/cloud',{[campo]:on?'1':'0'});pintaNube();$('nmsg').textContent='Listo: guardado.'}
  catch(e){c.checked=!on;$('nmsg').textContent=nerr(e)}}
-$('share').onchange=()=>opcionNube('share',$('share'));$('vchk').onchange=()=>opcionNube('versionCheck',$('vchk'));
+$('share').onchange=()=>opcionNube('share',$('share'));$('vchk').onchange=()=>opcionNube('versionCheck',$('vchk'));$('com').onchange=()=>opcionNube('community',$('com'));
 $('msend').onclick=async()=>{const b=$('msend'),m=$('mmsg');m.textContent='';
  if(!nube||!nube.share){m.textContent=NMSG.apagado;return}
  if(!$('mfab').value||!$('mdns').value||!$('mmenu').value){m.textContent='Revisa lo que elegiste.';return}

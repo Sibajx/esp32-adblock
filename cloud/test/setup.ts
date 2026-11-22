@@ -31,6 +31,8 @@ export const TABLAS = [
   "temas",
   "contacto_dia",
   "respuestas_dia",
+  "permitidos",
+  "permitidos_version",
 ] as const;
 
 export async function vaciarTablas(): Promise<void> {

@@ -3,13 +3,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { barras, semanaCorta } from '../js/graficas.js';
 import { normalizarEstadisticas, pintarEstadisticas, nombrePais, cargarEstadisticas } from '../js/estadisticas.js';
-import { normalizarResumen, pintarResumen, cargarResumen } from '../js/dueno.js';
+import { normalizarResumen, pintarResumen, cargarResumen, pintarPermitidos, cambiarPermitido, esDominio } from '../js/dueno.js';
 
 // DOM falso: elementos con hijos, atributos y textContent; sabe crear SVG.
 function docFalso(ids = []) {
   function nuevo(tag, ns = null) {
     return {
-      tagName: tag, ns, children: [], attrs: {}, hidden: false, _texto: '',
+      tagName: tag, ns, children: [], attrs: {}, hidden: false, disabled: false, _texto: '', oyentes: {},
+      addEventListener(t, f) { this.oyentes[t] = f; },
       get textContent() { return this._texto + this.children.map((c) => c.textContent).join(''); },
       set textContent(v) { this._texto = String(v); this.children = []; },
       setAttribute(k, v) { this.attrs[k] = String(v); },
@@ -182,7 +183,8 @@ const RES = {
   guiasFaltan: [{ fabricante: 'no-se', n: 6 }],
   placasTotal: 31,
 };
-const IDS_DUENO = ['d-embudo', 'd-temas', 'd-motivos', 'd-bloqueos', 'd-guias', 'd-placas', 'dueno-estado', 'dueno-datos', 'dueno-entrar'];
+const IDS_DUENO = ['d-embudo', 'd-temas', 'd-motivos', 'd-bloqueos', 'd-guias', 'd-placas', 'dueno-estado', 'dueno-datos', 'dueno-entrar',
+  'd-revisar', 'd-permitidos', 'd-permitidos-total', 'd-permitidos-estado'];
 
 test('pintarResumen: nombres en español y los dominios como texto', () => {
   const doc = docFalso(IDS_DUENO);
@@ -232,4 +234,99 @@ test('juntarPaises: más de 20 países → los 19 más grandes y el resto suma e
   assert.equal(j[19].n, resto);
   // Con pocos, solo ordena y deja «otros» al final.
   assert.deepEqual(juntarPaises([{ pais: 'otros', n: 50 }, { pais: 'MX', n: 5 }, { pais: 'CO', n: 9 }]).map((p) => p.pais), ['CO', 'MX', 'otros']);
+});
+
+// --- permitidos de la comunidad (panel del dueño) ---
+
+const RES_P = {
+  ...RES,
+  bloqueos: [
+    { dominio: 'a.ejemplo.com', n: 5, aprobado: true },
+    { dominio: 'b.ejemplo.com', n: 1, aprobado: false },
+    { dominio: '<img src=x>.com', n: 9, aprobado: 'si' },
+  ],
+  permitidos: [{ dominio: 'a.ejemplo.com', desde: '2026-11-21' }, { dominio: 'MAL.com', desde: '2026-11-21' }, { dominio: 'c.ejemplo.com', desde: 7 }],
+};
+
+test('esDominio: misma regla que el Worker y la placa', () => {
+  for (const ok of ['ads.ejemplo.com', 'a-b.c0.mx', 'x.co']) assert.equal(esDominio(ok), true, ok);
+  for (const malo of ['ADS.com', 'ejemplo', 'a..b.com', '-a.com', 'a b.com', 'x'.repeat(64) + '.com', '', 7, null]) {
+    assert.equal(esDominio(malo), false, String(malo));
+  }
+});
+
+test('normalizarResumen: aprobado solo con true; permitidos solo con nombres válidos', () => {
+  const r = normalizarResumen(RES_P);
+  assert.deepEqual(r.bloqueos.map((f) => f.aprobado), [false, true, false]);
+  assert.deepEqual(r.permitidos, [{ dominio: 'a.ejemplo.com', desde: '2026-11-21' }, { dominio: 'c.ejemplo.com', desde: '' }]);
+  assert.deepEqual(normalizarResumen(RES).permitidos, []);
+});
+
+test('pintarPermitidos: «Aprobar» o «Quitar» por sitio, como texto, y la lista con «Quitar»', () => {
+  const doc = docFalso(IDS_DUENO);
+  const pedidos = [];
+  pintarPermitidos(doc, normalizarResumen(RES_P), (d, aprobar) => pedidos.push([d, aprobar]));
+  const botones = todos(doc.els['d-revisar'], 'button');
+  // El nombre raro no es un dominio válido: no se puede aprobar (el Worker lo rechazaría).
+  assert.deepEqual(botones.map((b) => b.textContent), ['Quitar', 'Aprobar']);
+  assert.ok(doc.els['d-revisar'].textContent.includes('5 reportes · aprobado'));
+  assert.ok(doc.els['d-revisar'].textContent.includes('1 reporte'));
+  assert.equal(todos(doc.els['d-revisar'], 'img').length, 0);
+  for (const b of botones) assert.equal(b.attrs.type, 'button');
+  botones[1].oyentes.click();
+  botones[0].oyentes.click();
+  assert.deepEqual(pedidos, [['b.ejemplo.com', true], ['a.ejemplo.com', false]]);
+  assert.equal(doc.els['d-permitidos-total'].textContent, '2');
+  const quitar = todos(doc.els['d-permitidos'], 'button');
+  assert.equal(quitar.length, 2);
+  assert.ok(doc.els['d-permitidos'].textContent.includes('desde el 2026-11-21'));
+  quitar[1].oyentes.click();
+  assert.deepEqual(pedidos.at(-1), ['c.ejemplo.com', false]);
+});
+
+test('pintarPermitidos: sin nada → avisos en vez de listas vacías', () => {
+  const doc = docFalso(IDS_DUENO);
+  pintarPermitidos(doc, normalizarResumen({ ...RES, bloqueos: [] }), () => {});
+  assert.match(doc.els['d-revisar'].textContent, /Todavía no hay sitios reportados/);
+  assert.match(doc.els['d-permitidos'].textContent, /Todavía no apruebas ningún sitio/);
+  assert.equal(doc.els['d-permitidos-total'].textContent, '0');
+});
+
+test('cambiarPermitido: ruta, cuerpo, cookie de Access y errores en palabras simples', async () => {
+  let url, opc;
+  assert.equal(await cambiarPermitido('a.ejemplo.com', true, async (u, o) => { url = u; opc = o; return new Response('{"ok":true}'); }), '');
+  assert.equal(url, '/api/v1/dueno/permitidos');
+  assert.equal(opc.method, 'POST');
+  assert.equal(opc.body, '{"dominio":"a.ejemplo.com"}');
+  assert.equal(opc.credentials, 'same-origin');
+  assert.equal(opc.redirect, 'manual');
+  await cambiarPermitido('a.ejemplo.com', false, async (u) => { url = u; return new Response('{"ok":true}'); });
+  assert.equal(url, '/api/v1/dueno/permitidos/quitar');
+  assert.match(await cambiarPermitido('a.ejemplo.com', true, async () => new Response('{"error":"tope"}', { status: 409 })), /500 sitios/);
+  assert.match(await cambiarPermitido('a.ejemplo.com', true, async () => ({ ok: false, status: 0, type: 'opaqueredirect' })), /Vuelve a entrar/);
+  assert.match(await cambiarPermitido('a.ejemplo.com', true, async () => { throw new Error('x'); }), /No se pudo guardar/);
+  let llamado = false;
+  assert.match(await cambiarPermitido('NO VALE', true, async () => { llamado = true; }), /no es válido/);
+  assert.equal(llamado, false);
+});
+
+test('cargarResumen: «Aprobar» manda el pedido y vuelve a cargar la lista', async () => {
+  const doc = docFalso(IDS_DUENO);
+  const urls = [];
+  let aprobado = false;
+  const fetchFn = async (u, o) => {
+    urls.push([u, o?.method ?? 'GET']);
+    if (u.endsWith('/dueno/permitidos')) { aprobado = true; return new Response('{"ok":true}'); }
+    const res = { ...RES, bloqueos: [{ dominio: 'b.ejemplo.com', n: 1, aprobado }], permitidos: aprobado ? [{ dominio: 'b.ejemplo.com', desde: '2026-11-21' }] : [] };
+    return new Response(JSON.stringify(res), { status: 200 });
+  };
+  await cargarResumen(doc, fetchFn);
+  const [b] = todos(doc.els['d-revisar'], 'button');
+  assert.equal(b.textContent, 'Aprobar');
+  await b.oyentes.click();
+  await new Promise((r) => setTimeout(r, 0));
+  assert.deepEqual(urls.map((x) => x[1]), ['GET', 'POST', 'GET']);
+  assert.equal(doc.els['d-permitidos-estado'].textContent, 'Aprobado: b.ejemplo.com.');
+  assert.equal(todos(doc.els['d-revisar'], 'button')[0].textContent, 'Quitar');
+  assert.equal(doc.els['d-permitidos-total'].textContent, '1');
 });

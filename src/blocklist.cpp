@@ -9,6 +9,7 @@
 #include <new>
 
 #include "certs.h"
+#include "community.h"
 #include "config.h"
 #include "lists.h"
 
@@ -154,17 +155,27 @@ Verdict BlockList::check(const std::string& name) {
   // Si el mutex está ocupado (guardando reglas o cambiando de lista) no se espera más de 50 ms:
   // mejor dejar pasar una consulta que trabar el DNS de la casa.
   CustomRules::Result r = CustomRules::kNone;
+  bool community = false;
   if (xSemaphoreTake(mutex_, pdMS_TO_TICKS(50)) == pdTRUE) {
     r = rules_.match(name);
+    community = siblock::communityAllows(community_, name);
     xSemaphoreGive(mutex_);
   }
   if (r == CustomRules::kAllow) return Verdict::kAllowedCustom;
   if (pausedSecondsLeft() > 0) return Verdict::kPaused;
+  // Tus reglas "Bloquear" ganan siempre sobre los permitidos de la comunidad.
   if (r == CustomRules::kBlock) return Verdict::kBlockedCustom;
   bool hit = forEachSuffix(name, [this](const char* p, size_t n) {
     return lookupKey(keyOf(hashDomain(p, n)));
   });
+  // Solo se dice "comunidad" cuando cambió algo: lo que la lista no bloquea pasa como siempre.
+  if (hit && community) return Verdict::kAllowedCommunity;
   return hit ? Verdict::kBlockedList : Verdict::kAllowed;
+}
+
+void BlockList::setCommunity(std::vector<uint64_t> keys) {
+  Lock l(mutex_);
+  community_ = std::move(keys);
 }
 
 // ---------- Reglas propias y pausa ----------

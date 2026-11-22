@@ -3,6 +3,7 @@ import { resumenDueno } from "./dueno";
 import { estadisticas } from "./estadisticas";
 import { error, leerJson, origenValido } from "./http";
 import { limpiar } from "./limpieza";
+import { aprobarPermitido, permitidos, quitarPermitido } from "./permitidos";
 import { avisoPlaca, paso } from "./placas";
 import { pais, reporteBloqueo, reporteModem } from "./reportes";
 import type { Deps, Env, Manejador } from "./tipos";
@@ -24,7 +25,10 @@ const RUTAS: Record<string, Ruta> = {
   "/api/v1/contacto": { metodo: "POST", tope: 8192, manejar: contacto },
   "/api/v1/pais": { metodo: "GET", tope: 0, manejar: pais },
   "/api/v1/estadisticas": { metodo: "GET", tope: 0, manejar: estadisticas },
+  "/api/v1/permitidos": { metodo: "GET", tope: 0, manejar: permitidos },
   "/api/v1/dueno/resumen": { metodo: "GET", tope: 0, manejar: resumenDueno },
+  "/api/v1/dueno/permitidos": { metodo: "POST", tope: 512, manejar: aprobarPermitido },
+  "/api/v1/dueno/permitidos/quitar": { metodo: "POST", tope: 512, manejar: quitarPermitido },
 };
 
 export async function manejar(req: Request, env: Env, ctx: ExecutionContext, deps: Deps): Promise<Response> {

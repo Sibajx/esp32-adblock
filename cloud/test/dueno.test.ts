@@ -70,10 +70,10 @@ describe("GET /api/v1/dueno/resumen", () => {
     await env.DB.batch(stmts);
 
     const { d } = await resumen(await firmar(ll.buena.privateKey));
-    const bloqueos = d.bloqueos as { dominio: string; n: number }[];
+    const bloqueos = d.bloqueos as { dominio: string; n: number; aprobado: boolean }[];
     expect(bloqueos).toHaveLength(50);
-    expect(bloqueos[0]).toEqual({ dominio: "d7.ejemplo.com", n: 9 });
-    expect(bloqueos[1]).toEqual({ dominio: "d3.ejemplo.com", n: 4 });
+    expect(bloqueos[0]).toEqual({ dominio: "d7.ejemplo.com", n: 9, aprobado: false });
+    expect(bloqueos[1]).toEqual({ dominio: "d3.ejemplo.com", n: 4, aprobado: false });
     for (let j = 1; j < bloqueos.length; j++) expect(bloqueos[j].n).toBeLessThanOrEqual(bloqueos[j - 1].n);
     expect(d.temas).toEqual([
       { tema: "no_instala", n: 2 }, { tema: "no_bloquea", n: 0 }, { tema: "bloqueo_de_mas", n: 0 }, { tema: "mi_modem", n: 4 }, { tema: "otra", n: 0 },
