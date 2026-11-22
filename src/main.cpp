@@ -23,6 +23,7 @@
 #include "portal.h"
 #include "settings.h"
 #include "siblock_crypto.h"
+#include "telegram.h"
 #include "web.h"
 
 // secrets.h es opcional: si existe, settings::seedFromSecrets() lo usa como valores de fábrica.
@@ -70,6 +71,9 @@ static uint32_t lastHistorySave = 0, lastTopHalve = 0;
 // al azar, para que no lleguen todas las placas a la vez); si falla, a la 1, 2, 4... h.
 // «Usar los permitidos de la comunidad» tiene el mismo calendario.
 static siblock::CloudSchedule pingSched, verSched, comSched;
+// Foto de la historia de 168 h (1,3 KB fuera de la pila) para el aviso diario y el resumen semanal:
+// los dos corren en loop(), uno después del otro.
+static siblock::UsageHistory::Slot gSlots[siblock::UsageHistory::kHours];
 static bool pingOn = false, verOn = false, comOn = false;
 
 static void watchCloud(uint32_t now) {
@@ -91,9 +95,8 @@ static void watchCloud(uint32_t now) {
   if (pingOn && pingSched.due(now)) {
     uint32_t hour = siblock::epochHour(int64_t(time(nullptr)));
     if (!hour) return;  // sin hora no se sabe qué es "hoy": se espera a NTP
-    static siblock::UsageHistory::Slot slots[siblock::UsageHistory::kHours];  // 1,3 KB fuera de la pila
-    dns.historySnapshot(hour, slots);
-    uint32_t blocked = siblock::sumBlocked(slots, 24);
+    dns.historySnapshot(hour, gSlots);
+    uint32_t blocked = siblock::sumBlocked(gSlots, 24);
     if (blocked > siblock::kMaxBlockedPerDay) blocked = siblock::kMaxBlockedPerDay;
     std::string body = siblock::pingJson(settings::installId().c_str(), SIBLOCK_VERSION, blocked);
     bool ok = cloud::postJson("/api/v1/placa", body) == cloud::Result::kOk;
@@ -116,6 +119,105 @@ static void watchCloud(uint32_t now) {
     else Serial.println("[nube] permitidos de la comunidad: no se pudo leer");
     comSched.done(ok, millis(), esp_random() % 3600000UL);
   }
+}
+
+// Avisos por Telegram (apagados de fábrica). Cada aviso espera su turno en telegram::status().pending
+// y sale desde aquí, uno por vuelta, con WiFi, con hora de internet (el certificado la necesita) y
+// nunca mientras se baja la lista. Topes: 20 por hora entre todos (tgLimiter) y uno de prueba cada
+// 30 s (lo cuida web.cpp). Si un envío falla no se reintenta: queda el resultado en el panel.
+static siblock::SendLimiter tgLimiter;
+static siblock::ListFailWatch listWatch;
+static siblock::BootCause bootCause = siblock::BootCause::kNormal;
+static uint32_t tgFailHours = 0;
+
+static bool clockSet();
+
+static bool telegramWants(uint8_t eventBit) {
+  return settings::telegramOn() && (settings::telegramEvents() & eventBit);
+}
+
+static void watchTelegram(uint32_t now) {
+  telegram::Status& st = telegram::status();
+  // Resumen semanal: domingo de 20:00 a 23:59 en la hora de la casa (la de los horarios); una vez.
+  static uint32_t lastWeekCheck = 0;
+  if (now - lastWeekCheck >= 60000) {
+    lastWeekCheck = now;
+    if (telegramWants(settings::kTgWeekly)) {
+      int32_t day = siblock::weeklySummaryDay(int64_t(time(nullptr)), family::tz());
+      if (day > 0 && uint32_t(day) != settings::telegramWeek()) {
+        settings::setTelegramWeek(uint32_t(day));
+        st.pending |= telegram::kWeekly;
+      }
+    }
+  }
+  if (!st.pending || updateRequested || blocklist.updating() || WiFi.status() != WL_CONNECTED || !clockSet()) return;
+  uint8_t bit = 0;
+  for (uint8_t b : {telegram::kTest, telegram::kBoot, telegram::kListFail, telegram::kListOk, telegram::kWeekly})
+    if (st.pending & b) {
+      bit = b;
+      break;
+    }
+  st.pending &= uint8_t(~bit);
+  std::string text;
+  uint32_t list = uint32_t(blocklist.count());
+  switch (bit) {
+    case telegram::kTest: text = siblock::testMessage(); break;
+    case telegram::kBoot:
+      if (telegramWants(settings::kTgReboot)) text = siblock::bootMessage(bootCause, list);
+      break;
+    case telegram::kListFail:
+      if (telegramWants(settings::kTgListFail)) text = siblock::listFailMessage(tgFailHours, list);
+      break;
+    case telegram::kListOk:
+      if (telegramWants(settings::kTgListFail)) text = siblock::listOkMessage(list);
+      break;
+    default:
+      if (telegramWants(settings::kTgWeekly)) {
+        uint32_t hour = siblock::epochHour(int64_t(time(nullptr)));
+        dns.historySnapshot(hour, gSlots);
+        text = siblock::weeklyMessage(siblock::sumBlocked(gSlots, siblock::UsageHistory::kHours));
+      }
+      break;
+  }
+  if (text.empty()) return;  // se apagó mientras esperaba
+  int code;
+  if (!tgLimiter.allow(millis())) {
+    code = 429;
+    st.last = siblock::TelegramResult::kLimit;
+  } else {
+    code = telegram::send(text);
+    st.last = siblock::telegramResultFor(code);
+  }
+  st.lastCode = code > 0 ? code : 0;
+  st.lastAt = clockSet() ? uint32_t(time(nullptr)) : 0;
+  Serial.printf("[telegram] aviso: %s\n", siblock::telegramResultName(st.last));
+}
+
+// Tras cada intento de bajar la lista: ¿toca avisar que falla o que ya se pudo?
+static void noteListResult(bool ok, uint32_t now) {
+  switch (listWatch.onResult(ok, now, telegramWants(settings::kTgListFail))) {
+    case siblock::ListFailWatch::kFail:
+      tgFailHours = listWatch.failingHours(now);
+      telegram::status().pending |= telegram::kListFail;
+      break;
+    case siblock::ListFailWatch::kRecovered:
+      telegram::status().pending |= telegram::kListOk;
+      break;
+    default:
+      break;
+  }
+}
+
+// Al arrancar: el aviso de reinicio (si está encendido) y la versión, para saber si fue una
+// actualización. Con los avisos apagados no se escribe nada en la NVS.
+static void startTelegram() {
+  if (!settings::telegramOn()) return;
+  String prev = settings::telegramFirmware();
+  bool updated = prev.length() && prev != SIBLOCK_VERSION;
+  if (prev != SIBLOCK_VERSION && !settings::setTelegramFirmware(SIBLOCK_VERSION))
+    Serial.println("[telegram] no se pudo guardar la versión");
+  bootCause = telegram::bootCause(updated);
+  if (settings::telegramEvents() & settings::kTgReboot) telegram::status().pending |= telegram::kBoot;
 }
 
 static void loadHistory() {
@@ -347,6 +449,7 @@ void setup() {
   cloud::status().share = settings::cloudShare();  // las tres apagadas de fábrica
   cloud::status().versionCheck = settings::versionCheck();
   cloud::status().community = settings::community();
+  startTelegram();
   loadHistory();
   lastHistorySave = lastTopHalve = millis();
   bool haveList = blocklist.begin();
@@ -386,6 +489,7 @@ void loop() {
   watchDnsPort(now);
   watchHistory(now);
   watchCloud(now);
+  watchTelegram(now);
   bool due = failedTries
                  ? now - lastTry > retryDelayMs()
                  : now - lastRefresh > uint32_t(REFRESH_HOURS) * 3600UL * 1000UL;
@@ -421,6 +525,7 @@ void loop() {
         Serial.println("[lista] no se pudo guardar qué listas tiene la lista nueva");
     }
     lastTry = millis();
+    noteListResult(ok, lastTry);
     if (ok) {
       lastRefresh = lastTry;
       failedTries = 0;

@@ -1,8 +1,10 @@
 // Raíces de confianza para descargar la lista por HTTPS y, si lo activas, hablar con
-// siblock.s-dev.win (Cloudflare: GTS y SSL.com) (generado de /etc/ssl/certs).
+// siblock.s-dev.win (Cloudflare: GTS y SSL.com) y con api.telegram.org (Go Daddy G2: la cadena
+// es api.telegram.org -> GoDaddy TLS Intermediate CA DV - R1v1 -> GoDaddy TLS Root CA - R1, firmada
+// por Go Daddy Root Certificate Authority - G2) (generado de /etc/ssl/certs).
 #pragma once
-// La incluyen blocklist.cpp y cloud.cpp: "weak" hace que el enlazador deje una sola copia en
-// flash (con "static" habría dos de ~9 KB).
+// La incluyen blocklist.cpp, cloud.cpp y telegram.cpp: "weak" hace que el enlazador deje una sola
+// copia en flash (con "static" habría una por archivo, de ~10 KB cada una).
 extern const char ROOT_CAS[];
 __attribute__((weak)) extern const char ROOT_CAS[] =
     // ISRG_Root_X1
@@ -203,5 +205,29 @@ __attribute__((weak)) extern const char ROOT_CAS[] =
     "uCZfZzgLnNAwDgYDVR0PAQH/BAQDAgGGMAoGCCqGSM49BAMDA2gAMGUCMFXjIlbp\n"
     "15IkWE8elDIPDAI2wv2sdDJO4fscgIijzPvX6yv/N33w7deedWo1dlJF4AIxAMeN\n"
     "b0Igj762TVntd00pxCAgRWSGOlDGxK0tk/UYfXLtqc/ErFc2KAhl3zx5Zn6g6g==\n"
+    "-----END CERTIFICATE-----\n"
+    // Go_Daddy_Root_Certificate_Authority_-_G2 (api.telegram.org, solo con los avisos por Telegram)
+    "-----BEGIN CERTIFICATE-----\n"
+    "MIIDxTCCAq2gAwIBAgIBADANBgkqhkiG9w0BAQsFADCBgzELMAkGA1UEBhMCVVMx\n"
+    "EDAOBgNVBAgTB0FyaXpvbmExEzARBgNVBAcTClNjb3R0c2RhbGUxGjAYBgNVBAoT\n"
+    "EUdvRGFkZHkuY29tLCBJbmMuMTEwLwYDVQQDEyhHbyBEYWRkeSBSb290IENlcnRp\n"
+    "ZmljYXRlIEF1dGhvcml0eSAtIEcyMB4XDTA5MDkwMTAwMDAwMFoXDTM3MTIzMTIz\n"
+    "NTk1OVowgYMxCzAJBgNVBAYTAlVTMRAwDgYDVQQIEwdBcml6b25hMRMwEQYDVQQH\n"
+    "EwpTY290dHNkYWxlMRowGAYDVQQKExFHb0RhZGR5LmNvbSwgSW5jLjExMC8GA1UE\n"
+    "AxMoR28gRGFkZHkgUm9vdCBDZXJ0aWZpY2F0ZSBBdXRob3JpdHkgLSBHMjCCASIw\n"
+    "DQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAL9xYgjx+lk09xvJGKP3gElY6SKD\n"
+    "E6bFIEMBO4Tx5oVJnyfq9oQbTqC023CYxzIBsQU+B07u9PpPL1kwIuerGVZr4oAH\n"
+    "/PMWdYA5UXvl+TW2dE6pjYIT5LY/qQOD+qK+ihVqf94Lw7YZFAXK6sOoBJQ7Rnwy\n"
+    "DfMAZiLIjWltNowRGLfTshxgtDj6AozO091GB94KPutdfMh8+7ArU6SSYmlRJQVh\n"
+    "GkSBjCypQ5Yj36w6gZoOKcUcqeldHraenjAKOc7xiID7S13MMuyFYkMlNAJWJwGR\n"
+    "tDtwKj9useiciAF9n9T521NtYJ2/LOdYq7hfRvzOxBsDPAnrSTFcaUaz4EcCAwEA\n"
+    "AaNCMEAwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMCAQYwHQYDVR0OBBYE\n"
+    "FDqahQcQZyi27/a9BUFuIMGU2g/eMA0GCSqGSIb3DQEBCwUAA4IBAQCZ21151fmX\n"
+    "WWcDYfF+OwYxdS2hII5PZYe096acvNjpL9DbWu7PdIxztDhC2gV7+AJ1uP2lsdeu\n"
+    "9tfeE8tTEH6KRtGX+rcuKxGrkLAngPnon1rpN5+r5N9ss4UXnT3ZJE95kTXWXwTr\n"
+    "gIOrmgIttRD02JDHBHNA7XIloKmf7J6raBKZV8aPEjoJpL1E/QYVN8Gb5DKj7Tjo\n"
+    "2GTzLH4U/ALqn83/B2gX2yKQOC16jdFU8WnjXzPKej17CuPKf1855eJ1usV2GDPO\n"
+    "LPAvTK33sefOT6jEm0pUBsV/fdUID+Ic/n4XuKxe9tQWskMJDE32p2u0mYRlynqI\n"
+    "4uJEvlz36hz1\n"
     "-----END CERTIFICATE-----\n"
     ;

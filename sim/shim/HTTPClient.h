@@ -4,6 +4,8 @@
 // https://siblock.s-dev.win se manda a ese prefijo (el firmware no sabe del simulador) y no le
 // afecta SIM_HTTP_FAIL. Sin SIM_CLOUD_URL, el simulador nunca llama al siblock.s-dev.win de verdad.
 // Cada petición a la nube se anota en el registro: "[sim] nube <MÉTODO> <ruta>".
+// Telegram: igual con SIM_TELEGRAM_URL para https://api.telegram.org; sin ella nunca sale. Se anota
+// "[sim] telegram <MÉTODO> /bot<oculto>/<método>" (el token de la ruta no va al registro).
 #pragma once
 #include <cstdio>
 #include <memory>
@@ -48,6 +50,6 @@ class HTTPClient {
   int run(const char* method, const std::string* body);
   std::string url_, tmp_, userAgent_ = "ESP32HTTPClient";
   std::vector<std::pair<std::string, std::string>> headers_;
-  bool follow_ = false, cloud_ = false, blocked_ = false;
+  bool follow_ = false, cloud_ = false, blocked_ = false, telegram_ = false;
   int size_ = -1;
 };

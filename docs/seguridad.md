@@ -459,6 +459,60 @@ Pruebas: `sim/test_sim.py` (19 a 23) y `test_host` (`testFamily`, `testBackup`).
 BOOT 10 s también borra `/familia.txt` (nombres, horarios, sal) y deja una sal nueva: quien regala o
 vende la placa no deja los nombres de su familia. Las reglas propias se quedan, como hasta ahora.
 
+## Avisos por Telegram
+
+Opción del dueño con **su propio bot** (apagada de fábrica). Rutas en
+[api.md](api.md#avisos-por-telegram-); pruebas: `sim/test_sim.py` (18g) y `test_host` (`testNotify`).
+
+### El token del bot
+
+Quien tiene el token puede escribir como ese bot (y leer lo que le escriben). Por eso es de **solo
+escritura**:
+
+- **Ninguna respuesta lo trae.** `GET /api/telegram` dice solo `tokenSaved` (sí o no). La prueba
+  18g revisa que no aparece en ninguna respuesta del panel (`/api/telegram`, `/api/cloud`,
+  `/api/options`, `/api/detail`, `/api/stats`, `/api/history`, `/api/devices`, `/api/backup` y la
+  página).
+- **No va a la serie.** Solo sale `[telegram] aviso: <resultado>`. El simulador tapa la ruta
+  (`/bot<oculto>/sendMessage`) y la prueba revisa que el token no está en ningún registro. En la
+  placa, `CORE_DEBUG_LEVEL=1` (solo errores): `HTTPClient` no imprime la URL.
+- **No va en el respaldo** (`writeBackup` no lo conoce) **ni se acepta al subirlo**: una línea
+  `telegram …` hace que el lector rechace el archivo entero («no se entiende»; prueba en
+  `test_host` y en 18g). El número de chat tampoco va.
+- **Se borra**: con «Borrar el token» (`clearToken=1`, que además apaga los avisos) y con "borrar la
+  configuración" (BOOT 10 s borra el espacio `siblock` entero; prueba 18g).
+- **Cambiarlo pide sesión** y el header anti-CSRF, como cualquier opción (`POST /api/telegram`; 401
+  sin sesión, 403 sin `X-Requested-With`). El token y el chat se validan con reglas estrictas
+  (`validTelegramToken`, `validTelegramChatId`), así que no pueden meter `/`, `?`, `&` ni saltos de
+  línea en la URL ni en el cuerpo.
+- **Poco tiempo en la RAM**: el cuerpo del pedido se borra al leerlo, y las copias principales del
+  token (la del pedido, la leída de la NVS y la URL armada) se pisan con ceros después de usarlas.
+  No es un borrado perfecto: `String` y `HTTPClient` pueden dejar copias en RAM libre hasta que se
+  reusa. Leer la RAM pide el cable USB y la placa en la mano, que ya da la NVS entera.
+
+### Qué se manda y a quién
+
+- Solo a `https://api.telegram.org/bot<token>/sendMessage`, con `chat_id` y `text` (formulario
+  codificado: el texto no puede agregar otros campos). Certificado validado con Go Daddy Root
+  Certificate Authority - G2 (`certs.h`), sin seguir redirecciones, 8 s de tope.
+- Los textos los arma `lib/siblock_core/notify.cpp` con valores fijos: el motivo del reinicio,
+  cuántos sitios tiene la lista, cuántos días lleva fallando y cuántas bloqueadas hubo en la
+  semana. **Nunca** IPs, MACs, nombres de aparatos, el WiFi ni dominios (prueba 18g y `testNotify`).
+- No pasa por siblock.s-dev.win. Telegram ve el texto, el número de chat y la IP de la casa.
+- Lo que contesta Telegram no se lee: el panel solo ve un nombre fijo (`ok`, `token`, `chat`…) y el
+  código HTTP. Así una respuesta rara no llega al panel ni a la serie.
+
+### Que no se convierta en un bucle
+
+- Sale desde `loop()`, uno por vuelta, nunca desde la tarea DNS ni dentro del pedido del panel (el
+  botón de prueba solo lo pide: **202**). Cada envío tarda como mucho ~8 s y en ese rato el panel no
+  contesta (el DNS sí, ver [arquitectura.md](arquitectura.md#tareas-y-concurrencia)).
+- Topes: un mensaje de prueba cada 30 s (**429** `espera`) y **20 por hora** entre todos; el que se
+  pasa no sale y queda como `limite` (prueba 18g). La lista que falla avisa a la tercera falla y
+  luego una vez cada 24 h; el reinicio, una vez por arranque; el resumen, una vez por semana
+  (marca en la NVS).
+- Un envío que falla no se reintenta.
+
 ## Riesgos aceptados
 
 - **El panel es HTTP.** Quien ya espía la WiFi puede ver la contraseña al entrar o al crearla;
@@ -508,6 +562,17 @@ vende la placa no deja los nombres de su familia. Las reglas propias se quedan, 
   sirve para no dejar la MAC escrita tal cual, no para esconderla de quien tiene el respaldo.
 - *(Fase 5)* **El ahorro es un estimado** (30 KB por consulta bloqueada, sin fuente): el panel dice
   "Aproximado".
+- **El token de Telegram está en la NVS sin cifrar.** Quien tenga la placa en la mano y un cable USB
+  puede leer la flash y sacarlo. Igual que el WiFi: la NVS no se cifra en este chip sin perder la
+  instalación por la página. Si regalas la placa, borra la configuración (BOOT 10 s); si la
+  pierdes, pídele a @BotFather un token nuevo (`/revoke`).
+- **El token viaja en texto por la WiFi de la casa al guardarlo** (el panel es HTTP), una sola vez,
+  como la contraseña del panel. Quien ya espía la WiFi podría verlo: en ese caso, cámbialo con
+  @BotFather.
+- **El certificado de api.telegram.org en el ESP32 está sin probar** (falta la placa): la cadena hoy
+  es GoDaddy DV R1v1 → GoDaddy TLS Root CA R1 → Go Daddy G2, revisada con
+  `openssl s_client -CAfile <solo G2>`. Si Telegram cambia de emisor, el panel dice `sin_internet`;
+  no afecta al DNS.
 - *(Fase 2)* **El canario de Firefox es siempre NXDOMAIN.** Quien quiera DoH en Firefox dentro de la
   casa puede activarlo a mano en Firefox (el canario solo apaga el automático).
 

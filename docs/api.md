@@ -25,6 +25,11 @@ final: [Worker `siblock-api`](#worker-siblock-api-fase-3).
 > `cd cloud && npm test`. El Worker todavía **no está publicado** (lo publica el autor con
 > [`cloud/DEPLOY.md`](../cloud/DEPLOY.md)).
 >
+> **Avisos por Telegram:** revisado contra el código (`src/web.cpp`: `handleTelegramGet`,
+> `handleTelegramPost`, `handleTelegramTest`; `src/main.cpp`: `watchTelegram`; `src/telegram.cpp`).
+> Lo prueban `sim/test_sim.py` (sección 18g, con un Telegram de mentira) y `test_host` (`testNotify`).
+> Falta probarlo con la placa y un bot de verdad.
+>
 > **Estado (fase 5):** lo marcado *(fase 5)* sale del contrato del plan
 > [`superpowers/plans/2026-11-21-siblock-fase-5.md`](superpowers/plans/2026-11-21-siblock-fase-5.md)
 > (tareas 5 a 8). Lo prueban `sim/test_sim.py` (secciones 19 a 23) y `test_host` (`testFamily`,
@@ -391,6 +396,79 @@ Respuestas de los dos reportes:
 | **502** `{"ok":false,"error":"rechazado"}` | El Worker contestó otro 3xx, 4xx o 5xx |
 
 Sin sesión → **401**; sin `X-Requested-With` → **403**.
+
+### Avisos por Telegram 🔒
+
+El dueño usa **su propio bot** de Telegram (lo crea con @BotFather). Está **apagado de fábrica**.
+La placa le manda textos cortos a su chat con `POST https://api.telegram.org/bot<token>/sendMessage`
+(cuerpo `application/x-www-form-urlencoded`: `chat_id=<chat>&text=<texto codificado>` y nada más).
+Solo números y estados: nunca IPs, MACs, nombres de aparatos ni sitios visitados. El certificado se
+valida con Go Daddy Root Certificate Authority - G2 (`certs.h`), 8 s de tope, sin seguir
+redirecciones, `User-Agent: SiBlock/<versión>`, y lo que contesta Telegram no se lee (solo el código).
+
+**El token solo se escribe.** Ninguna ruta lo devuelve (solo `tokenSaved`: sí o no), no se imprime
+por la serie, no va en el respaldo ni se acepta al subirlo, y "borrar la configuración" lo borra.
+
+#### `GET /api/telegram` 🔒
+
+```json
+{"on":false,"tokenSaved":false,"chat":"","reboot":true,"listFail":true,"weekly":true,
+ "last":"never","lastCode":0,"lastAt":0,"pending":false}
+```
+
+| Campo | Qué es |
+|---|---|
+| `on` | "Mandarme avisos por Telegram" (NVS `tg_on`; solo el valor `1` cuenta) |
+| `tokenSaved` | ¿Hay token guardado? (NVS `tg_token`). El token mismo nunca sale |
+| `chat` | Número de chat guardado (NVS `tg_chat`), `""` si no hay. Solo `[-0-9]` |
+| `reboot`, `listFail`, `weekly` | Qué avisos (NVS `tg_ev`, bits 1, 2 y 4; si falta, los tres) |
+| `last` | Cómo salió el último envío: `never`, `ok`, `token` (401 o 404), `chat` (400), `bloqueado` (403: el bot no puede escribirte), `limite` (429 de Telegram o el tope de la placa), `sin_internet` (sin WiFi, sin RAM para TLS, tiempo agotado) o `rechazado` (otro código). Solo en RAM |
+| `lastCode` | Código HTTP de ese envío (`0` si no se llegó) |
+| `lastAt` | Segundos desde 1970 de ese envío (`0` si nunca o sin hora) |
+| `pending` | Hay un mensaje de prueba esperando su turno |
+
+#### `POST /api/telegram` 🔒
+
+Campos (al menos uno): `token`, `chat`, `on`, `reboot`, `listFail`, `weekly`, `clearToken` (los
+cinco últimos `0` o `1`). Al token y al chat se les quitan los espacios de los lados.
+
+- `token`: `^[0-9]{5,12}:[A-Za-z0-9_-]{30,64}$` (`siblock::validTelegramToken`).
+- `chat`: `^-?[0-9]{1,20}$` (`siblock::validTelegramChatId`).
+- `on=1` pide token y chat (los que vienen o los guardados).
+- `clearToken=1` ("Borrar el token") borra el token, apaga los avisos y suelta los que esperaban.
+
+| Respuesta | Cuándo |
+|---|---|
+| **200** con el JSON de `GET` | Se guardó |
+| **400** `datos` | No vino nada, o un `0`/`1` trae otro valor |
+| **400** `token` / `chat` | El token o el chat no son válidos (o `token` junto con `clearToken=1`) |
+| **400** `falta_token` / `falta_chat` | `on=1` sin token o sin chat |
+| **500** `guardar` | La NVS no lo guardó. Puede quedar a medias, pero apagar va primero y encender al final: nunca queda encendido sin querer |
+
+Si algo no vale, no se cambia **nada**. El cuerpo del pedido se borra de la RAM al leerlo.
+
+#### `POST /api/telegram/test` 🔒
+
+Pide un mensaje de prueba («SiBlock: mensaje de prueba…»). No espera a Telegram: **202**
+`{"ok":true}` y `loop()` lo manda en un momento; el resultado sale en `GET` (`pending`, `last`).
+Funciona aunque `on` esté apagado (lo pide el dueño a mano).
+
+- **409** `falta`: no hay token o no hay chat.
+- **429** `espera`: uno cada 30 s.
+
+#### Cuándo se manda cada aviso (`watchTelegram` en `main.cpp`)
+
+| Aviso | Texto (ejemplo) | Cuándo |
+|---|---|---|
+| La placa se reinició | «SiBlock se reinició (corte de luz o la desconectaron). Lista: 152 340 sitios.» | Una vez por arranque, con WiFi y hora de internet. El motivo sale de `esp_reset_reason()`: corte de luz, reinicio normal, tuvo una falla y se recuperó sola, bajó la corriente; y «actualización» si la versión cambió desde el arranque anterior (NVS `tg_fw`, que solo se escribe con los avisos encendidos) |
+| La lista no se pudo actualizar | «SiBlock no pudo actualizar la lista desde hace 2 días. Sigue usando la que tiene (152 340 sitios).» | A la tercera falla seguida (la primera y los reintentos de 1 y 5 min) y luego como mucho una vez cada 24 h mientras siga fallando. Si se avisó y vuelve a funcionar: «SiBlock ya pudo actualizar la lista: …» (`siblock::ListFailWatch`) |
+| Resumen semanal | «Resumen de la semana: 12 345 anuncios y rastreadores bloqueados.» | Domingo de 20:00 a 23:59 en la hora de la casa (la zona que guardan los horarios; sin horarios, UTC). Una vez por semana (NVS `tg_week`). Sin hora de internet, no. Suma las bloqueadas de la historia de 168 h |
+
+Reglas para todos: salen desde `loop()` (nunca desde la tarea DNS ni dentro de una petición del
+panel), uno por vuelta, con WiFi, con hora de internet, nunca mientras se baja la lista, y como
+mucho **20 por hora** entre todos (`siblock::SendLimiter`; el 21 queda como `limite` sin salir). Un
+envío que falla no se reintenta. Por la serie sale `[telegram] aviso: <last>` (sin el token ni el
+texto).
 
 ### Del panel a la página *(fase 3)*
 El panel no manda correos ni su diagnóstico a internet. Abre la página con los datos **en el

@@ -40,7 +40,7 @@
       </p>
       <p class="aviso">
         Lo corto: aparte de lo que tu SiBlock hace siempre para funcionar (lo explicamos abajo), no
-        manda nada a SiBlock ni a nadie más a menos que tú lo actives. Las dos opciones que mandan
+        manda nada a SiBlock ni a nadie más a menos que tú lo actives. Las opciones que mandan
         algo vienen apagadas de fábrica.
       </p>
     </div>
@@ -97,7 +97,7 @@
     <section id="placa" class="bloque" aria-labelledby="titulo-placa">
       <h2 id="titulo-placa">Lo que manda la placa (solo si tú lo activas)</h2>
       <p>
-        En tu panel, en «Compartir con SiBlock», hay dos opciones. Las dos vienen apagadas de fábrica
+        En tu panel, en «Compartir con SiBlock», hay tres opciones. Las tres vienen apagadas de fábrica
         y las puedes apagar cuando quieras. Al borrar la configuración se apagan solas.
       </p>
       <h3>Compartir datos anónimos</h3>
@@ -133,6 +133,18 @@
         reportaron con «esto no debió bloquearse» y que revisamos a mano, y deja de bloquearlos (tus
         sitios en «Bloquear» siempre ganan). Solo pide la lista, que es igual para todos; no manda
         nada tuyo y no guardamos quién la pide. Viene apagada.
+      </p>
+      <h3>Avisos por Telegram</h3>
+      <p>
+        Esta opción está aparte, en «Avisos por Telegram», y también viene apagada. Si la activas con
+        tu propio bot de Telegram, tu SiBlock le manda mensajes cortos a tu chat a través de
+        api.telegram.org: que se reinició (y por qué, por ejemplo un corte de luz), que no pudo
+        actualizar su lista o cuántos anuncios quitó en la semana, con el número de sitios de su lista.
+        Solo números y estados: nunca tu IP, la MAC, nombres de aparatos ni qué sitios visitas. Los
+        mensajes van de tu placa a Telegram, no pasan por siblock.s-dev.win y nosotros no los vemos.
+        Telegram ve el mensaje y la dirección de internet de tu casa, como con cualquier mensaje que
+        mandas. El token de tu bot se queda guardado en la placa: el panel nunca lo muestra, no va en
+        el respaldo y se borra al borrar la configuración.
       </p>
     </section>
 

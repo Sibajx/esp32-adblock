@@ -80,3 +80,23 @@ static const char* const ALLOWLIST[] = {
 // una vez al día SIBLOCK_CLOUD_BASE "/api/v1/permitidos" (no manda nada) y la guarda en
 // /comunidad.bin. Apagarla o "borrar la configuración" borra esa lista.
 #define NVS_COMMUNITY "comunidad"
+
+// Avisos por Telegram al dueño, con SU propio bot (apagados de fábrica). Mandan textos cortos con
+// números y estados (nunca IPs, MACs, nombres de aparatos ni sitios visitados) a
+// SIBLOCK_TELEGRAM_BASE "/bot<token>/sendMessage". El token y el chat no salen nunca por el panel,
+// la serie ni el respaldo. "Borrar la configuración" los borra.
+#define SIBLOCK_TELEGRAM_BASE "https://api.telegram.org"
+// Token del bot (texto, lo da @BotFather). Solo se escribe desde el panel; ninguna ruta lo devuelve.
+#define NVS_TG_TOKEN "tg_token"
+// Número de chat al que se manda (texto, puede ser negativo en grupos).
+#define NVS_TG_CHAT "tg_chat"
+// "Mandarme avisos por Telegram": u32; solo 1 cuenta como encendido (falta, 2 o ilegible = apagado).
+#define NVS_TG_ON "tg_on"
+// Qué avisos: u32 con bits 1 = la placa se reinició, 2 = la lista no se pudo actualizar,
+// 4 = resumen semanal. Si falta: los tres.
+#define NVS_TG_EVENTS "tg_ev"
+// Día (días desde 1970, en la hora de la casa) del último domingo con resumen: no se manda dos veces.
+#define NVS_TG_WEEK "tg_week"
+// Versión con la que arrancó la vez anterior (solo con los avisos encendidos): si cambió, el
+// aviso de reinicio dice «actualización».
+#define NVS_TG_FW "tg_fw"

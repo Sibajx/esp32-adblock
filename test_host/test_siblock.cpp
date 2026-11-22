@@ -18,6 +18,7 @@
 #include "../lib/siblock_core/backup.h"
 #include "../lib/siblock_core/lists.h"
 #include "../lib/siblock_core/community.h"
+#include "../lib/siblock_core/notify.h"
 
 // family/backup usan adblock_core (sufijos, normalizeDomain); el Makefile solo enlaza
 // siblock_core, así que se compila aquí junto con la prueba.
@@ -1418,6 +1419,12 @@ static void testBackup() {
   badBackup(replaceLine(text, "relay 1\n", "relay 1\n\n"), true, 4);
   badBackup(replaceLine(text, "relay 1\n", "relay 1\nrelay 0\n"), true, 4);
   badBackup(replaceLine(text, "relay 1\n", "relay 1\nhola 1\n"), true, 4, "no se entiende");
+  // Telegram (token y chat) nunca va en el respaldo ni se acepta al subirlo.
+  CHECK(text.find("telegram") == std::string::npos && text.find("token") == std::string::npos &&
+        text.find("chat") == std::string::npos);
+  badBackup(replaceLine(text, "relay 1\n", "relay 1\ntelegram 123456:" + std::string(35, 'A') + "\n"), true, 4,
+            "no se entiende");
+  badBackup(replaceLine(text, "relay 1\n", "relay 1\ntelegram_chat 123456789\n"), true, 4, "no se entiende");
   badBackup(text + "zona 0\n", true, 14);
   badBackup("zona 0\n" + text, true, 1);
   badBackup(replaceLine(text, "listas 5\n", ""), true, 0);
@@ -1670,6 +1677,183 @@ static void testCommunity() {
   CHECK(!decodeCommunity(nullptr, 0, b));
 }
 
+// ---------- Avisos por Telegram ----------
+static std::string decodeForm(const std::string& s) {
+  std::string o;
+  for (size_t i = 0; i < s.size(); i++) {
+    if (s[i] == '%' && i + 2 < s.size()) {
+      o += char(std::stoi(s.substr(i + 1, 2), nullptr, 16));
+      i += 2;
+    } else {
+      o += s[i];
+    }
+  }
+  return o;
+}
+
+static void testNotify() {
+  const std::string tail(35, 'a');
+  CHECK(validTelegramToken("12345:" + std::string(30, 'A')));
+  CHECK(validTelegramToken("123456789012:" + std::string(64, 'z')));
+  CHECK(validTelegramToken("110201543:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw"));
+  CHECK(validTelegramToken("123456:aZ09_-" + std::string(30, 'x')));
+  CHECK(!validTelegramToken(""));
+  CHECK(!validTelegramToken("1234:" + tail));                       // 4 dígitos
+  CHECK(!validTelegramToken("1234567890123:" + tail));              // 13 dígitos
+  CHECK(!validTelegramToken("12345:" + std::string(29, 'a')));      // corto
+  CHECK(!validTelegramToken("12345:" + std::string(65, 'a')));      // largo
+  CHECK(!validTelegramToken("12a45:" + tail));
+  CHECK(!validTelegramToken("12345" + tail));                       // sin ':'
+  CHECK(!validTelegramToken("12345::" + tail));
+  CHECK(!validTelegramToken("12345:" + tail + "/"));                // nada de rutas
+  CHECK(!validTelegramToken("12345:" + tail + "?"));
+  CHECK(!validTelegramToken("12345:" + tail + " "));
+  CHECK(!validTelegramToken(" 12345:" + tail));
+  CHECK(!validTelegramToken("12345:" + tail + "\n"));
+  CHECK(!validTelegramToken("12345:" + tail + "\xc3\xb1"));
+  CHECK(!validTelegramToken(std::string("12345:") + std::string(34, 'a') + '\0'));
+
+  CHECK(validTelegramChatId("1"));
+  CHECK(validTelegramChatId("123456789"));
+  CHECK(validTelegramChatId("-1001234567890"));
+  CHECK(validTelegramChatId(std::string(20, '9')));
+  CHECK(validTelegramChatId("-" + std::string(20, '9')));
+  CHECK(!validTelegramChatId(""));
+  CHECK(!validTelegramChatId("-"));
+  CHECK(!validTelegramChatId(std::string(21, '9')));
+  CHECK(!validTelegramChatId("+123"));
+  CHECK(!validTelegramChatId("12 3"));
+  CHECK(!validTelegramChatId("--1"));
+  CHECK(!validTelegramChatId("@canal"));
+  CHECK(!validTelegramChatId("1&text=x"));
+
+  const std::string sp = "\xC2\xA0";
+  CHECK(groupThousands(0) == "0");
+  CHECK(groupThousands(999) == "999");
+  CHECK(groupThousands(1000) == "1" + sp + "000");
+  CHECK(groupThousands(152340) == "152" + sp + "340");
+  CHECK(groupThousands(4294967295u) == "4" + sp + "294" + sp + "967" + sp + "295");
+
+  CHECK(bootMessage(BootCause::kPower, 152340) ==
+        "SiBlock se reinició (corte de luz o la desconectaron). Lista: 152" + sp + "340 sitios.");
+  CHECK(bootMessage(BootCause::kNormal, 1) == "SiBlock se reinició (reinicio normal). Lista: 1 sitio.");
+  CHECK(bootMessage(BootCause::kCrash, 5).find("falla y se recuperó sola") != std::string::npos);
+  CHECK(bootMessage(BootCause::kBrownout, 5).find("bajó la corriente") != std::string::npos);
+  CHECK(bootMessage(BootCause::kUpdate, 0) == "SiBlock se reinició (actualización). Todavía no tiene su lista.");
+  CHECK(listFailMessage(0, 100) == "SiBlock no pudo actualizar la lista. Sigue usando la que tiene (100 sitios).");
+  CHECK(listFailMessage(23, 100).find("desde hace") == std::string::npos);
+  CHECK(listFailMessage(24, 100).find("desde hace 1 día.") != std::string::npos);
+  CHECK(listFailMessage(49, 2000) ==
+        "SiBlock no pudo actualizar la lista desde hace 2 días. Sigue usando la que tiene (2" + sp + "000 sitios).");
+  CHECK(listFailMessage(0, 0) == "SiBlock no pudo actualizar la lista y todavía no tiene ninguna: no bloquea nada.");
+  CHECK(listOkMessage(152340) == "SiBlock ya pudo actualizar la lista: 152" + sp + "340 sitios.");
+  CHECK(weeklyMessage(12345) == "Resumen de la semana: 12" + sp + "345 anuncios y rastreadores bloqueados.");
+  CHECK(weeklyMessage(1) == "Resumen de la semana: 1 anuncio o rastreador bloqueado.");
+  CHECK(weeklyMessage(0).find("no hubo") != std::string::npos);
+  CHECK(testMessage().find("prueba") != std::string::npos);
+  // Ningún mensaje lleva más que números y estados: ni '.' de una IP, ni ':' de una MAC.
+  for (const std::string& m : {bootMessage(BootCause::kPower, 152340), listFailMessage(50, 1), weeklyMessage(7),
+                               listOkMessage(3), testMessage()}) {
+    CHECK(m.size() < 200 && m.find("://") == std::string::npos);
+    bool ipLike = false;
+    for (size_t i = 1; i + 1 < m.size(); i++)
+      if (m[i] == '.' && isdigit(uint8_t(m[i - 1])) && isdigit(uint8_t(m[i + 1]))) ipLike = true;
+    CHECK(!ipLike);
+  }
+
+  CHECK(formEncode("aZ09-_.~") == "aZ09-_.~");
+  CHECK(formEncode("a b&c=d+e%f/\n") == "a%20b%26c%3Dd%2Be%25f%2F%0A");
+  CHECK(formEncode("\xC3\xB1") == "%C3%B1");
+  std::string form = telegramForm("-100123", "Hola & adiós = 100%");
+  CHECK(form == "chat_id=-100123&text=Hola%20%26%20adi%C3%B3s%20%3D%20100%25");
+  CHECK(decodeForm(form.substr(form.find("text=") + 5)) == "Hola & adiós = 100%");
+  CHECK(form.find('&', form.find("text=")) == std::string::npos);  // el texto no puede meter otro campo
+  CHECK(telegramForm("12&x=1", "hola").empty());
+  CHECK(telegramForm("12", "").empty());
+
+  // Domingo 23 de noviembre de 2025, 20:00 UTC = 1763928000.
+  const int64_t sun20 = 1763928000;
+  CHECK(weeklySummaryDay(sun20, 0) == int32_t(sun20 / 86400));
+  CHECK(weeklySummaryDay(sun20 - 60, 0) == -1);                       // 19:59
+  CHECK(weeklySummaryDay(sun20 + 4 * 3600 - 60, 0) == int32_t(sun20 / 86400));  // 23:59
+  CHECK(weeklySummaryDay(sun20 + 4 * 3600, 0) == -1);                 // lunes 00:00
+  CHECK(weeklySummaryDay(sun20 - 24 * 3600, 0) == -1);                // sábado 20:00
+  CHECK(weeklySummaryDay(sun20, -360) == -1);                         // 14:00 en la casa (UTC-6)
+  CHECK(weeklySummaryDay(sun20 + 6 * 3600, -360) == int32_t(sun20 / 86400));  // 20:00 en la casa
+  CHECK(weeklySummaryDay(sun20 + 6 * 3600, 0) == -1);                 // en UTC ya es lunes
+  CHECK(weeklySummaryDay(sun20 - 3 * 3600, 180) > 0);                 // 20:00 en UTC+3
+  CHECK(weeklySummaryDay(sun20 + 7 * 86400, 0) == int32_t(sun20 / 86400) + 7);  // la otra semana, otro día
+  CHECK(weeklySummaryDay(0, 0) == -1);                                // sin hora
+  CHECK(weeklySummaryDay(1699999999, 0) == -1);
+
+  CHECK(telegramResultFor(200) == TelegramResult::kOk);
+  CHECK(telegramResultFor(-1) == TelegramResult::kNoNet && telegramResultFor(0) == TelegramResult::kNoNet);
+  CHECK(telegramResultFor(401) == TelegramResult::kToken && telegramResultFor(404) == TelegramResult::kToken);
+  CHECK(telegramResultFor(400) == TelegramResult::kChat);
+  CHECK(telegramResultFor(403) == TelegramResult::kBlocked);
+  CHECK(telegramResultFor(429) == TelegramResult::kLimit);
+  CHECK(telegramResultFor(500) == TelegramResult::kRejected && telegramResultFor(302) == TelegramResult::kRejected);
+  CHECK(std::string(telegramResultName(TelegramResult::kNever)) == "never");
+  CHECK(std::string(telegramResultName(TelegramResult::kNoNet)) == "sin_internet");
+  CHECK(std::string(telegramResultName(TelegramResult::kBlocked)) == "bloqueado");
+
+  // Tope de 20 por hora, también cuando millis() da la vuelta.
+  for (uint32_t base : {0u, 0xFFFFFFFFu - 1800000u}) {
+    SendLimiter l;
+    for (uint32_t i = 0; i < SendLimiter::kMax; i++) CHECK(l.allow(base + i * 1000));
+    CHECK(!l.allow(base + 20000));
+    CHECK(!l.allow(base + SendLimiter::kWindowMs - 1));          // el primero todavía cuenta
+    CHECK(l.allow(base + SendLimiter::kWindowMs));               // salió de la ventana: hay lugar para uno
+    CHECK(!l.allow(base + SendLimiter::kWindowMs + 500));
+    CHECK(l.allow(base + SendLimiter::kWindowMs + 1000));        // salió el segundo
+  }
+  {
+    Cooldown c;
+    CHECK(c.take(0, 30000));
+    CHECK(!c.take(29999, 30000));
+    CHECK(c.take(30000, 30000));
+    Cooldown d;
+    CHECK(d.take(0xFFFFFFFFu - 10, 30000));
+    CHECK(!d.take(100, 30000));
+    CHECK(d.take(30000, 30000));
+  }
+
+  {  // Lista que no se actualiza.
+    ListFailWatch w;
+    CHECK(w.onResult(false, 0, true) == ListFailWatch::kNone);
+    CHECK(w.onResult(false, 60000, true) == ListFailWatch::kNone);
+    CHECK(w.onResult(false, 360000, true) == ListFailWatch::kFail);    // tercera seguida
+    CHECK(w.failingHours(360000) == 0 && w.failingHours(3 * 3600000) == 3);
+    CHECK(w.onResult(false, 2160000, true) == ListFailWatch::kNone);    // a los 30 min: ya se avisó
+    CHECK(w.onResult(false, 360000 + ListFailWatch::kRepeatMs - 1, true) == ListFailWatch::kNone);
+    CHECK(w.onResult(false, 360000 + ListFailWatch::kRepeatMs, true) == ListFailWatch::kFail);  // 24 h después
+    CHECK(w.failingHours(360000 + ListFailWatch::kRepeatMs) == 24);
+    CHECK(w.onResult(true, 90000000, true) == ListFailWatch::kRecovered);
+    CHECK(w.failingHours(90000000) == 0);
+    CHECK(w.onResult(true, 90000001, true) == ListFailWatch::kNone);
+    // Una falla suelta que se arregla no avisa nada.
+    CHECK(w.onResult(false, 1, true) == ListFailWatch::kNone);
+    CHECK(w.onResult(true, 2, true) == ListFailWatch::kNone);
+  }
+  {  // Apagado: no avisa ni cuenta como avisado; al encenderlo con la racha en curso, avisa.
+    ListFailWatch w;
+    for (int i = 0; i < 5; i++) CHECK(w.onResult(false, uint32_t(i) * 60000, false) == ListFailWatch::kNone);
+    CHECK(w.onResult(true, 400000, false) == ListFailWatch::kNone);
+    for (int i = 0; i < 3; i++) w.onResult(false, uint32_t(i), false);
+    CHECK(w.onResult(false, 10, true) == ListFailWatch::kFail);
+    CHECK(w.onResult(true, 20, false) == ListFailWatch::kNone);  // se apagó: no dice «ya se pudo»
+  }
+  {  // millis() da la vuelta en medio de la racha.
+    ListFailWatch w;
+    uint32_t t0 = 0xFFFFFFFFu - 1000;
+    w.onResult(false, t0, true);
+    w.onResult(false, t0 + 500, true);
+    CHECK(w.onResult(false, 5000, true) == ListFailWatch::kFail);
+    CHECK(w.onResult(false, 6000, true) == ListFailWatch::kNone);
+    CHECK(w.failingHours(7200000) == 2);
+  }
+}
+
 int main() {
   testSha256();
   testPbkdf2();
@@ -1700,6 +1884,7 @@ int main() {
   testStatusLed();
   testSavings();
   testCommunity();
+  testNotify();
   if (fails) {
     std::printf("%d fallas de %d pruebas\n", fails, checks);
     return 1;

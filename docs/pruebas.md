@@ -118,6 +118,16 @@ en una clave de más sí, dominio de 254 no; 500 sitios sí y 501 no; 32 KB just
 que llega después de un error no lo arregla; `/comunidad.bin` ida y vuelta, vacío, y cortado, de
 más, otra cabecera, desordenado, repetido o con 501 → se ignora.
 
+Avisos por Telegram, `testNotify` (`notify.*`): token (5 y 12 dígitos, 30 y 64 letras; 4 o 13
+dígitos, 29 o 65 letras, sin `:`, con `/`, `?`, espacio, salto de línea, `ñ` o `\0` → no) y chat
+(`-100…`, 20 dígitos; 21, `+`, `@canal`, `&` → no); miles con espacio que no se corta; cada mensaje
+(reinicio por cada motivo, lista que falla con y sin días y sin lista, «ya pudo», resumen con 0, 1 y
+muchas, prueba) y que ninguno trae algo con forma de IP o de dirección; el formulario codificado (el
+texto no puede meter otro campo); el domingo de 20:00 a 23:59 en UTC, UTC−6 y UTC+3 (19:59, lunes
+00:00 y sábado no; sin hora → −1); códigos de Telegram → nombre; tope de 20 por hora y uno cada
+30 s, también cuando `millis()` da la vuelta; y `ListFailWatch` (a la tercera falla, no otra vez
+antes de 24 h, «ya pudo» solo si se avisó, apagado no cuenta como avisado).
+
 `list_stats` es una herramienta aparte: cuenta dominios únicos de las listas reales y calcula
 falsos positivos.
 
@@ -138,7 +148,7 @@ El simulador compila **el mismo `src/`** contra una capa falsa en `sim/shim/`:
 | Serie de entrada | stdin, solo con `SIM_SERIAL_STDIN=1` |
 | Tareas, colas y semáforos de FreeRTOS | hilos de `std::thread` y primitivas de C++ |
 | AsyncUDP / WiFiServer | sockets POSIX |
-| HTTPS (`WiFiClientSecure`) | `curl`, verificando certificados. *(Fase 3)* Una URL que empieza con `https://siblock.s-dev.win` va a `SIM_CLOUD_URL`; **sin esa variable no sale** (se anota `[sim] nube … (sin SIM_CLOUD_URL: no sale)`). El simulador nunca llama al Worker de verdad |
+| HTTPS (`WiFiClientSecure`) | `curl`, verificando certificados. *(Fase 3)* Una URL que empieza con `https://siblock.s-dev.win` va a `SIM_CLOUD_URL`; **sin esa variable no sale** (se anota `[sim] nube … (sin SIM_CLOUD_URL: no sale)`). El simulador nunca llama al Worker de verdad. Igual con `https://api.telegram.org` y `SIM_TELEGRAM_URL` (se anota `[sim] telegram POST /bot<oculto>/sendMessage`, con el token tapado) |
 | `WebServer` | shim con los mismos topes que `lib/WebServer` |
 
 `make -C sim` arma dos binarios:
@@ -162,6 +172,8 @@ Variables de entorno:
 | `SIM_CLIENT_IP` | IP que ve el panel para todas las peticiones (p. ej. `192.168.1.50` = un aparato de la casa, fuera de la red del AP) |
 | `SIM_GATEWAY` *(fase 2)* | IP de la puerta de enlace simulada (`WiFi.gatewayIP()`); sin ella es `127.0.0.254`, para que `127.0.0.1` no cuente como router |
 | `SIM_CLOUD_URL` *(fase 3)* | Prefijo (p. ej. `http://127.0.0.1:<puerto>`) que reemplaza a `https://siblock.s-dev.win`: ahí contesta el Worker de mentira (`NubeFalsa` de `test_sim.py`). Cada petición a la nube se anota en el registro del simulador |
+| `SIM_TELEGRAM_URL` | Prefijo que reemplaza a `https://api.telegram.org` (el Telegram de mentira de la sección 18g). Sin ella, ningún aviso sale |
+| `SIM_RESET_REASON` | Por qué "arrancó" la placa (`esp_reset_reason()`): `power` (por defecto), `sw`, `panic`, `wdt` o `brownout` |
 
 ```bash
 make -C sim
@@ -240,6 +252,20 @@ pkill -x esp32-sim                              # nunca pkill -f
     respaldo; tu «Bloquear» gana (y dice `tuyo`) y al quitarlo vuelve a pasar; una lista mal
     hecha se rechaza y queda la anterior; tras reiniciar (con la nube en 500) se usa la guardada;
     `community=0` vuelve a bloquear, borra el archivo y deja 25 h sin pedir la lista.
+    18g. avisos por Telegram (`SIM_TELEGRAM_URL` apunta a un Telegram de mentira; sin ella el
+    simulador anota `[sim] telegram POST /bot<oculto>/sendMessage (sin SIM_TELEGRAM_URL: no sale)`
+    y nunca habla con api.telegram.org): sin sesión → 401, sin anti-CSRF → 403; de fábrica apagado
+    y 25 h sin mandar nada (aunque la lista falle); 14 pedidos malos → 400 sin guardar nada
+    (`falta_token`, `falta_chat`); token con espacios se guarda y la respuesta no lo trae; el
+    mensaje de prueba sale con `chat_id` y `text` exactos, como formulario, sin IPs, MACs ni el WiFi;
+    otra prueba enseguida → 429; Telegram 401/400/403/500 → `token`/`chat`/`bloqueado`/`rechazado`
+    sin repetir lo que contestó; el envío 21 de la hora no sale (`limite`) y una hora después sí;
+    encendido, la lista que falla avisa a la tercera falla y no repite a la cuarta; el respaldo no
+    trae token ni chat y uno con una línea `telegram` se rechaza; ninguna respuesta del panel trae
+    el token; reinicio con `SIM_RESET_REASON=panic` → «tuvo una falla y se recuperó sola», uno
+    solo; con otra versión en `tg_fw` → «actualización»; con «La placa se reinició» apagado no
+    avisa; «Borrar el token» lo quita y apaga; BOOT 10 s borra todo lo de Telegram; el token no
+    aparece en ningún registro (las placas de la sección y `sim/sim.log`).
 
 19. *(fase 5)* aparatos y horarios sin rutas: carpeta preparada a mano (`familia.txt` con sal
     `00…0f`, `Tele` en la casilla 0 y un horario "todo internet" en la hora actual); `example.com`
@@ -355,6 +381,20 @@ Pide el Worker publicado (ver [`cloud/DEPLOY.md`](../cloud/DEPLOY.md)).
 | RAM durante el TLS | La RAM libre de `STATS` antes y después del aviso diario; que la descarga de la lista siga funcionando el mismo día |
 | Enlaces a la página | «Reportar desde la página» lleva el número; «Escríbenos» llena el diagnóstico y solo lo manda si se marca la casilla |
 | Borrar la configuración | Después, `/api/cloud` da todo apagado y otro `installId` |
+
+### Avisos por Telegram
+
+Pide un bot de prueba propio (de @BotFather) y la placa con internet.
+
+| Prueba | Qué mirar |
+|---|---|
+| **Certificado de api.telegram.org en el ESP32** (falta verificar) | «Mandar mensaje de prueba» → llega a Telegram y el panel dice `ok`. Si dice «sin internet» con internet funcionando, revisar la cadena (`openssl s_client -connect api.telegram.org:443 -showcerts`) y que su raíz esté en `certs.h` (hoy Go Daddy Root Certificate Authority - G2) |
+| Motivo del reinicio | Desenchufar y enchufar → «corte de luz o la desconectaron»; botón EN → revisar qué dice (en el ESP32 clásico puede salir como corte de luz); instalar otra versión por USB → «actualización» |
+| La lista que falla | Bloquear `raw.githubusercontent.com` en el router y pulsar «Actualizar lista» → a los ~6 min llega el aviso; quitar el bloqueo → «ya pudo» |
+| Resumen semanal | Con un horario guardado (para la zona), el domingo a las 20:00 llega el resumen |
+| El panel sigue contestando | Mientras sale un aviso (hasta ~8 s) el panel puede tardar; el DNS no |
+| Serie | Ninguna línea con el token; solo `[telegram] aviso: …` |
+| RAM | `STATS` antes y después de un aviso: la RAM libre vuelve a lo de antes |
 
 ### Fase 5 (diseño, 5.3)
 

@@ -49,9 +49,10 @@ listas opcionales, LED, ahorro y respaldo) en [Fase 5: uso diario en casa](#fase
 | `src/web.cpp`, `src/web_page.h` | Panel y API: sesión, bloqueo por IP, Host, topes del cuerpo |
 | `src/family_store.*` *(fase 5)* | Aparatos con nombre, pausas por aparato y horarios en la placa: tabla ARP → huella, `/familia.txt`, decisión para la tarea DNS |
 | `src/config.h` | Lo que se ajusta: tope, DNS de arriba, nombre (`siblock`, y `adblock` por compatibilidad), versión (`SIBLOCK_VERSION`), IP fija, anti-rebinding |
-| `src/certs.h` | CAs raíz fijas para validar HTTPS de las descargas y *(fase 3)* de `siblock.s-dev.win` |
+| `src/certs.h` | CAs raíz fijas para validar HTTPS de las descargas, *(fase 3)* de `siblock.s-dev.win` y de `api.telegram.org` (Go Daddy G2) |
 | `src/cloud.*` *(fase 3)* | Cliente HTTPS hacia el Worker (`postJson`, `fetchLatestVersion`, `fetchCommunity`) y el estado de la nube en RAM |
 | `src/community_store.*` | Permitidos de la comunidad: bajarlos, guardarlos en `/comunidad.bin` y pasárselos a `BlockList` |
+| `src/telegram.*` | Avisos por Telegram: el envío HTTPS a `api.telegram.org` con el bot del dueño, el motivo del arranque (`esp_reset_reason`) y el estado en RAM. Cuándo se manda cada aviso lo decide `main.cpp` (`watchTelegram`) |
 | `lib/adblock_core/` | Lógica pura (parser DNS, hash, índice, reglas, caché, JSON), sin Arduino |
 | `lib/siblock_core/` | Lógica pura de SiBlock, sin Arduino: SHA-256 y PBKDF2 (`siblock_crypto`), base64 y validaciones (`siblock_text`), Improv (`improv`), botón, LED, ventana de creación y política del portal (`modes`); *(fase 2)* nombres especiales (`dns_names`), historia de 168 h y top de bloqueados (`usage`), aparatos que se saltan y diagnóstico (`diagnose`); *(fase 5)* aparatos, horarios y grupos (`family`), formato del respaldo (`backup`), catálogo de listas (`lists`), LED de estado (`modes`) y ahorro (`usage`); permitidos de la comunidad (`community`) |
 | `lib/WebServer/` | Copia parcheada del `WebServer` de Arduino con topes (ver `CAMBIOS.md`) |
@@ -68,7 +69,7 @@ listas opcionales, LED, ahorro y respaldo) en [Fase 5: uso diario en casa](#fase
 | `dns` | 1 / 5 | 8 KB | Saca de la cola, decide (lista, caché o reenvío) y contesta. Tiene un **vigilante de 30 s**: si se traba, el ESP32 se reinicia |
 | `dns_tcp` | 1 / 4 | 8 KB | Atiende DNS por TCP, una conexión a la vez, con 3 s de plazo |
 | `boton` *(fase 5)* | 1 / 1 | 3 KB | Lee BOOT y maneja el LED cada 20 ms; la acción (ventana, modo de configuración o borrado) la guarda en una variable atómica y la atiende `loop()` |
-| `loopTask` (Arduino) | 1 / 1 | 8 KB | `web::loop()` (panel y portal), la acción del botón que dejó la tarea `boton`, Improv por serie, política del portal, vigilancia del WiFi, autoprueba del puerto 53, actualización de la lista y `STATS` cada 5 s |
+| `loopTask` (Arduino) | 1 / 1 | 8 KB | `web::loop()` (panel y portal), la acción del botón que dejó la tarea `boton`, Improv por serie, política del portal, vigilancia del WiFi, autoprueba del puerto 53, la nube y los avisos por Telegram (uno por vuelta, hasta ~8 s cada uno), actualización de la lista y `STATS` cada 5 s |
 
 **Límite conocido de `loopTask`:** todo lo de esa fila corre en orden. Mientras se baja la lista
 (hasta 10 s esperando la hora y luego la descarga, que puede tardar minutos) y mientras el portal
@@ -116,6 +117,8 @@ menos importante.
 | *(Fase 5)* Lectura del respaldo | hasta unos 24 KB (reglas y familia en un `Backup` temporal; estimado) | solo al revisar o aplicar un respaldo (`apply` pide ≥ 40 KB seguidos) |
 | Índice de la lista | 16 KB (4097 × 4 B) | siempre |
 | Permitidos de la comunidad | hasta 4 KB (500 × 8 B de huella) | solo con la opción encendida |
+| Avisos por Telegram (tope de 20 por hora, estado, racha de la lista) | ~0,1 KB | siempre |
+| TLS de un aviso por Telegram | ~45 KB | durante el envío (hasta ~8 s), con los avisos encendidos |
 | Caché DNS | hasta ~32 KB (64 × 512 B) | se vacía antes de actualizar y no se llena mientras se descarga ni con menos de 24 KB de RAM seguida |
 | Cola de consultas | 8 KB (16 × 512 B) | siempre |
 | TLS de una descarga | ~45 KB | durante la descarga |
@@ -153,6 +156,8 @@ no se acaba la flash.
 | *(Fase 3)* Sin modelo de módem ni OUI | Leer la página del módem o la MAC | No hay lista de modelos con fuente; queda para la fase 4 |
 | Permitidos de la comunidad como huellas de 64 bits en un conjunto aparte | Sumarlos a las reglas propias | Caben 500 en 4 KB, no se mezclan con «Mis reglas» ni con el respaldo, y tu «Bloquear» gana siempre |
 | Leer la lista de la comunidad de a pedazos | Bajar el cuerpo entero (32 KB) a la RAM | Junto al TLS no siempre hay 32 KB seguidos; así basta un búfer de 256 B |
+| Avisos por Telegram con el bot de cada dueño, directo de la placa a `api.telegram.org` | Un bot de SiBlock que pase por el Worker | Así nosotros no vemos ni guardamos los mensajes ni a quién van, y no hay un token compartido que proteger |
+| El botón de prueba solo pide el envío (202) y `loop()` lo manda | Mandarlo dentro del pedido del panel | El pedido no queda esperando a Telegram y todos los envíos pasan por el mismo tope de 20 por hora |
 
 ## Fase 1: configuración sin recompilar
 
@@ -323,6 +328,7 @@ flowchart LR
 | Reportes desde el panel (`/api/report/*`) | **No** (409 sin la opción) | La misma opción; cada reporte lo manda la persona con un botón |
 | Consulta de versión (`GET /version.json`) | **No** | El dueño: "Avisarme de versiones nuevas" |
 | Permitidos de la comunidad (`GET /api/v1/permitidos`) | **No** | El dueño: "Usar los permitidos de la comunidad" |
+| Avisos por Telegram (`POST https://api.telegram.org/bot…/sendMessage`, con el bot del dueño; no pasa por el Worker) | **No** | El dueño: "Mandarme avisos por Telegram" |
 | Reportes desde la página | — | La persona, con el botón «Mandar» (y Turnstile) |
 | Contáctanos | — | La persona; el diagnóstico solo si marca adjuntarlo |
 | Embudo de la página (`/api/v1/paso`) | Sí, en la página | Contadores por día sin número ni cookies |

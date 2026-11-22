@@ -123,6 +123,21 @@ fieldset{border:0;padding:0;margin:0;display:grid;gap:4px}legend{font-size:14px;
 <div class="row"><button id="msend">Mandar</button><span id="mmsg" class="l" aria-live="polite"></span></div>
 <div class="row"><a id="rep" href="https://siblock.s-dev.win/reporte.html" target="_blank" rel="noopener noreferrer">Reportar desde la página</a><a id="esc" href="https://siblock.s-dev.win/contacto.html" target="_blank" rel="noopener noreferrer">Escríbenos</a></div>
 </div>
+<h2>Avisos por Telegram</h2>
+<div class="card stack" style="max-width:none">
+<span class="l">Apagado de fábrica. Con tu propio bot de Telegram, SiBlock te avisa si se reinició, si no pudo actualizar su lista y cuántos anuncios quitó en la semana. Solo manda números y estados, nunca tu IP, nombres de aparatos ni qué sitios visitas. Los mensajes pasan por api.telegram.org.</span>
+<span class="l">Cómo: en Telegram escribe a @BotFather, manda /newbot y copia el token que te da. Escríbele «hola» a tu bot y busca tu número de chat (por ejemplo, con @userinfobot).</span>
+<label class="fld"><span>Token del bot</span><input id="tgtok" type="password" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="123456789:AA…"></label>
+<span id="tgsaved" class="l"></span>
+<label class="fld"><span>Número de chat</span><input id="tgchat" autocomplete="off" spellcheck="false" placeholder="123456789"></label>
+<fieldset><legend>Avisarme cuando</legend>
+<label class="chk"><input type="checkbox" id="tgr"><span>La placa se reinició</span></label>
+<label class="chk"><input type="checkbox" id="tgl"><span>La lista no se pudo actualizar</span></label>
+<label class="chk"><input type="checkbox" id="tgw"><span>Resumen semanal (domingo a las 8 de la noche)</span></label></fieldset>
+<div class="row"><button id="tgsave">Guardar</button><button id="tgtest">Mandar mensaje de prueba</button><button id="tgdel" hidden>Borrar el token</button></div>
+<label class="chk"><input type="checkbox" id="tgon"><span>Mandarme avisos por Telegram</span></label>
+<div id="tgmsg" class="l" aria-live="polite"></div><div id="tglast" class="l" aria-live="polite"></div>
+</div>
 <h2>Mis reglas</h2>
 <div class="row"><input id="dom" class="grow" placeholder="ejemplo.com" autocapitalize="off" spellcheck="false">
 <button id="blk">Bloquear</button><button id="alw">Permitir</button></div>
@@ -130,7 +145,7 @@ fieldset{border:0;padding:0;margin:0;display:grid;gap:4px}legend{font-size:14px;
 <div id="msg"></div>
 <h2>Respaldo</h2>
 <div class="card stack" style="max-width:none">
-<span class="l">El respaldo guarda tus reglas, los nombres de los aparatos, los horarios, las listas elegidas y la opción de Private Relay. No guarda el WiFi ni la contraseña. Es un archivo privado: no lo compartas.</span>
+<span class="l">El respaldo guarda tus reglas, los nombres de los aparatos, los horarios, las listas elegidas y la opción de Private Relay. No guarda el WiFi, la contraseña ni los datos de Telegram. Es un archivo privado: no lo compartas.</span>
 <div class="row"><button id="bdown">Bajar respaldo</button>
 <label class="fld"><span>Subir respaldo</span><input type="file" id="bfile" accept=".txt,text/plain"></label></div>
 <p id="bres" aria-live="polite"></p>
@@ -188,7 +203,7 @@ let pwSet=true,setupOk=false;
 function showAuth(){$('setup').hidden=!!tk||pwSet||!setupOk;$('closed').hidden=!!tk||pwSet||setupOk;$('login').hidden=!!tk||!pwSet;$('admin').hidden=!tk;$('priv').hidden=!tk}
 const b64=s=>btoa(String.fromCharCode(...new TextEncoder().encode(s)));
 const bytes=s=>new TextEncoder().encode(s).length;
-function login(j){tk=j.token;try{sessionStorage.setItem('tk',tk)}catch(e){};showAuth();tick();rules();backup();options();cargaNube();loadHist();prepDiag();loadDevs().then(loadSched)}
+function login(j){tk=j.token;try{sessionStorage.setItem('tk',tk)}catch(e){};showAuth();tick();rules();backup();options();cargaNube();cargaTg();loadHist();prepDiag();loadDevs().then(loadSched)}
 $('go').onclick=async()=>{const pw=$('pw').value;$('pw').value='';
  try{login(await call('/api/login',{method:'POST',headers:{'X-Requested-With':'adblock','Authorization':'Basic '+b64('admin:'+pw)}}));$('lmsg').textContent=''}
  catch(e){$('lmsg').textContent=e.message}};
@@ -234,7 +249,7 @@ async function tick(){
   pwSet=s.passwordSet;setupOk=s.setupOpen;$('ver').textContent=s.version||'';showAuth();
   $('pst').textContent=s.paused?'En pausa: quedan '+Math.ceil(s.paused/60)+' min':'Activo';
   $('pst').className='grow '+(s.paused?'warn':'');$('resume').disabled=!s.paused;
-  if(tk){detail();if(++hTick%5==0)loadDevs();if(hTick%20==0){loadHist();cargaNube()}}
+  if(tk){detail();if(++hTick%5==0)loadDevs();if(hTick%20==0){loadHist();cargaNube();cargaTg()}}
  }catch(e){$('status').textContent='Sin conexión con SiBlock'}
 }
 async function detail(){
@@ -441,6 +456,29 @@ function noDebio(li,d){if(li.querySelector('.nb'))return;const box=el('div','nb'
   try{await post('/api/report/blocked',{domain:d,motivo:sel.value});m.textContent='Listo: gracias por avisar.';sel.disabled=true}
   catch(e){m.textContent=nerr(e);ok.disabled=false}};
  box.append(sel,ok,no,m);li.append(box)}
+// ---- Avisos por Telegram (apagado de fábrica). El token nunca vuelve de la placa: solo «guardado: sí/no».
+let tg=null;
+const TGM={token:'Ese token no parece de un bot de Telegram. Cópialo entero de @BotFather.',chat:'El número de chat son solo cifras (puede empezar con -).',
+ falta_token:'Primero guarda el token del bot.',falta_chat:'Primero guarda tu número de chat.',falta:'Primero guarda el token y el número de chat.',
+ espera:'Espera 30 segundos entre una prueba y otra.',datos:'Revisa lo que elegiste.',guardar:'No se pudo guardar; prueba otra vez.'};
+const TGL={ok:'El último mensaje llegó bien a Telegram.',token:'Telegram dice que el token no es válido. Revisa el token o crea otro con @BotFather.',
+ chat:'Telegram no encontró ese chat. Revisa el número de chat.',bloqueado:'Telegram no deja que tu bot te escriba: abre el chat con tu bot y pulsa «Iniciar».',
+ limite:'Se mandaron muchos avisos seguidos; espera un rato.',sin_internet:'SiBlock no pudo llegar a Telegram (sin internet).',rechazado:'Telegram no aceptó el mensaje.'};
+function pintaTg(){if(!tg)return;$('tgon').checked=!!tg.on;$('tgr').checked=!!tg.reboot;$('tgl').checked=!!tg.listFail;$('tgw').checked=!!tg.weekly;
+ if(document.activeElement!==$('tgchat'))$('tgchat').value=tg.chat||'';
+ $('tgsaved').textContent='Token guardado: '+(tg.tokenSaved?'sí':'no');$('tgdel').hidden=!tg.tokenSaved;
+ $('tglast').textContent=tg.pending?'Mandando la prueba…':tg.last==='never'?'':(TGL[tg.last]||tg.last)+(tg.last!=='ok'&&tg.lastCode?' (código '+tg.lastCode+')':'')+(tg.lastAt?' · '+new Date(tg.lastAt*1000).toLocaleString():'')}
+async function cargaTg(){if(!tk)return;try{tg=await get('/api/telegram');pintaTg()}catch(e){}}
+async function guardaTg(campos,m){$('tgmsg').textContent='';
+ try{tg=await post('/api/telegram',campos);pintaTg();$('tgmsg').textContent=m||'Listo: guardado.';return true}
+ catch(e){$('tgmsg').textContent=TGM[e.message]||e.message;await cargaTg();return false}}
+$('tgsave').onclick=async()=>{const c={reboot:$('tgr').checked?'1':'0',listFail:$('tgl').checked?'1':'0',weekly:$('tgw').checked?'1':'0'},t=$('tgtok').value.trim(),ch=$('tgchat').value.trim();
+ if(t)c.token=t;if(ch)c.chat=ch;if(await guardaTg(c))$('tgtok').value=''};
+$('tgon').onchange=()=>guardaTg({on:$('tgon').checked?'1':'0'});
+$('tgdel').onclick=()=>guardaTg({clearToken:'1'},'Listo: token borrado. Ya no se mandan avisos.');
+$('tgtest').onclick=async()=>{const b=$('tgtest');$('tgmsg').textContent='';b.disabled=true;
+ try{await post('/api/telegram/test');await cargaTg();for(let i=0;i<10&&tg&&tg.pending;i++){await new Promise(r=>setTimeout(r,1500));await cargaTg()}}
+ catch(e){$('tgmsg').textContent=TGM[e.message]||e.message}b.disabled=false};
 // Escríbenos: el diagnóstico va en el fragmento (#diag=...), que el navegador nunca manda a ningún servidor.
 const b64u=s=>btoa(String.fromCharCode(...new TextEncoder().encode(s))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 // Se arma antes del toque (al cargar, tras revisar, al pasar o enfocar): un window.open después de
@@ -454,5 +492,5 @@ async function prepDiag(){let d={v:'',heap:0,listErr:'',codes:[]};
 $('esc').onfocus=$('esc').onpointerenter=()=>{prepDiag()};
 $('esc').onclick=()=>{setTimeout(prepDiag,0)};
 
-showAuth();tick();rules();backup();options();cargaNube();loadHist();loadDevs().then(loadSched);check();setInterval(tick,3000);
+showAuth();tick();rules();backup();options();cargaNube();cargaTg();loadHist();loadDevs().then(loadSched);check();setInterval(tick,3000);
 </script></body></html>)HTML";

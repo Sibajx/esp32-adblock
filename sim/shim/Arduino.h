@@ -41,6 +41,10 @@ class String {
   int lastIndexOf(char c) const { size_t p = s_.rfind(c); return p == std::string::npos ? -1 : int(p); }
   String substring(size_t a, size_t b) const { return String(s_.substr(a, b > a ? b - a : 0).c_str()); }
   void toLowerCase() { for (char& c : s_) c = char(tolower((unsigned char)c)); }
+  void trim() {  // como el de Arduino: espacios, tabs y saltos de línea a los dos lados
+    size_t a = s_.find_first_not_of(" \t\r\n\f\v"), b = s_.find_last_not_of(" \t\r\n\f\v");
+    s_ = a == std::string::npos ? std::string() : s_.substr(a, b - a + 1);
+  }
   void reserve(size_t n) { s_.reserve(n); }
   long toInt() const { return strtol(s_.c_str(), nullptr, 10); }
   String& operator+=(const String& o) { s_ += o.s_; return *this; }

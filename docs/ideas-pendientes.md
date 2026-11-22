@@ -404,9 +404,14 @@ nuevas y la RAM al bajarlas (`docs/pruebas.md`, "Fase 5").
    placa la baja una vez al día solo con «Usar los permitidos de la comunidad» encendido (apagado de
    fábrica), sin mandar nada. Funciona como «Permitir», pero tus reglas «Bloquear» ganan y no se
    mezcla con «Mis reglas» ni con el respaldo.
-9. [ ] **Avisos por Telegram** al dueño (pendiente, no entró en la fase 3), opcional: "la placa se reinició", "la lista no se pudo
+9. ✅ **Avisos por Telegram** al dueño, opcional: "la placa se reinició", "la lista no se pudo
    actualizar", resumen semanal. Cada quien usa su propio bot; el token se guarda en la placa y
    nunca se muestra en el panel.
+   Hecho: sección «Avisos por Telegram» del panel, **apagada de fábrica**; token y número de chat
+   (validados), los tres avisos a elegir, «Mandar mensaje de prueba» (uno cada 30 s) y «Borrar el
+   token»; como mucho 20 mensajes por hora. Solo números y estados. El token no sale por ninguna
+   ruta, la serie ni el respaldo, y se borra con la configuración. Falta probarlo con la placa y un
+   bot de verdad (el certificado de api.telegram.org: [pruebas.md](pruebas.md#avisos-por-telegram)).
 10. ✅ (fase 3) **Aviso de versión nueva** en el panel con liga a la página para actualizar por USB (no hay
     OTA). La placa consulta un `version.json` público; apagable.
     Hecho: opción "Avisarme de versiones nuevas", **apagada de fábrica**; un `GET` al día sin

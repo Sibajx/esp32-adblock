@@ -39,7 +39,7 @@
       </p>
       <p class="aviso">
         In short: apart from what your SiBlock always does to work (explained below), it sends nothing
-        to SiBlock or anyone else unless you turn it on. The two options that send something are off
+        to SiBlock or anyone else unless you turn it on. The options that send something are off
         by default.
       </p>
       <p class="nota">
@@ -104,7 +104,7 @@
       <h2 id="titulo-placa">What the board sends (only if you turn it on)</h2>
       <p>
         In your panel, under «<span lang="es">Compartir con SiBlock</span>» (“Share with SiBlock”),
-        there are two options. Both are off by default and you can turn them off whenever you want.
+        there are three options. All are off by default and you can turn them off whenever you want.
         When you erase the settings, they turn off by themselves.
       </p>
       <h3>«<span lang="es">Compartir datos anónimos</span>» (Share anonymous data)</h3>
@@ -141,6 +141,18 @@
         as “this shouldn’t have been blocked” and that we reviewed by hand, and stops blocking them (your
         own sites in «<span lang="es">Bloquear</span>» always win). It only asks for the list, which is
         the same for everyone; it sends nothing of yours and we don’t keep who asks for it. It comes off.
+      </p>
+      <h3>«<span lang="es">Avisos por Telegram</span>» (Telegram alerts)</h3>
+      <p>
+        This option is separate, under «<span lang="es">Avisos por Telegram</span>», and is also off by
+        default. If you turn it on with your own Telegram bot, your SiBlock sends short messages to your
+        chat through api.telegram.org: that it restarted (and why, for example a power cut), that it
+        couldn’t update its list, or how many ads it removed that week, with the number of sites in its
+        list. Only numbers and states: never your IP, the MAC, device names or which sites you visit. The
+        messages go from your board to Telegram; they don’t go through siblock.s-dev.win and we don’t see
+        them. Telegram sees the message and your home’s internet address, as with any message you send.
+        Your bot’s token stays on the board: the panel never shows it, it isn’t in the backup and it is
+        erased when you erase the settings.
       </p>
     </section>
 

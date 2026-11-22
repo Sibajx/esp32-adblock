@@ -193,6 +193,69 @@ Se guarda en la NVS: `install_id` (32 hex), `cloud_share`, `ver_check` y `comuni
 encendido; falta, `0`, `2` o ilegible = apagado). La última versión vista y cómo salió el último aviso
 (`lastPing`) viven solo en RAM. Para ver el estado: `GET /api/cloud` ([api.md](api.md#get-apicloud--fase-3)).
 
+## Avisos por Telegram
+
+Sección **Avisos por Telegram** del panel (con sesión), debajo de "Compartir con SiBlock". Viene
+**apagada**. SiBlock te escribe a tu Telegram con **tu propio bot**: los mensajes van de tu placa a
+Telegram (`api.telegram.org`), sin pasar por siblock.s-dev.win.
+
+Qué te puede avisar (eliges cuáles):
+
+- **La placa se reinició**: una vez cada vez que arranca, con el motivo (corte de luz, reinicio
+  normal, tuvo una falla y se recuperó sola, bajó la corriente o actualización) y cuántos sitios
+  tiene su lista.
+- **La lista no se pudo actualizar**: si falla tres veces seguidas (unos 6 minutos), y luego como
+  mucho una vez al día mientras siga fallando. Cuando vuelve a funcionar te dice «ya pudo».
+- **Resumen semanal**: el domingo a las 8 de la noche (hora de tu casa, la misma de los horarios),
+  cuántos anuncios y rastreadores quitó en la semana.
+
+Los mensajes solo llevan números y estados. Nunca tu IP, la MAC, nombres de aparatos ni qué sitios
+visitas.
+
+### Paso 1: crear tu bot
+
+1. En Telegram, busca **@BotFather** (tiene la palomita azul) y ábrelo.
+2. Escríbele `/newbot`.
+3. Te pide un nombre para el bot (por ejemplo, «SiBlock de mi casa») y luego un nombre de usuario
+   que termine en `bot` (por ejemplo, `siblock_casa_perez_bot`).
+4. Te contesta con un **token**, algo así: `123456789:AAH...` (números, dos puntos y unas 35
+   letras). Cópialo entero. **Es como una contraseña**: no se lo pases a nadie.
+
+### Paso 2: tu número de chat
+
+1. Busca tu bot nuevo en Telegram (por el nombre de usuario que le pusiste), ábrelo y pulsa
+   **Iniciar** (o escríbele «hola»). Sin esto, el bot no puede escribirte.
+2. Para saber tu número de chat, busca **@userinfobot**, ábrelo y pulsa **Iniciar**: te contesta
+   con tu **Id**, un número como `987654321`. Ese es tu número de chat.
+
+   Si quieres los avisos en un grupo: agrega tu bot al grupo, escribe algo en el grupo y abre en el
+   navegador `https://api.telegram.org/bot<tu token>/getUpdates` (con tu token). Busca
+   `"chat":{"id":-100…`: ese número (con el `-`) es el del grupo. No compartas esa dirección: lleva
+   tu token.
+
+### Paso 3: dárselo a SiBlock
+
+1. En el panel, en **Avisos por Telegram**, pega el token en «Token del bot» y tu número en «Número
+   de chat». Elige qué avisos quieres y pulsa **Guardar**. Abajo dice «Token guardado: sí».
+2. Pulsa **Mandar mensaje de prueba**. En unos segundos te llega «SiBlock: mensaje de prueba…» y el
+   panel dice «El último mensaje llegó bien a Telegram». Si no:
+
+   | El panel dice | Qué hacer |
+   |---|---|
+   | el token no es válido | Cópialo otra vez de @BotFather (o pídele uno nuevo con `/token`) |
+   | no encontró ese chat | Revisa el número de chat |
+   | no deja que tu bot te escriba | Abre el chat con tu bot y pulsa **Iniciar** |
+   | no pudo llegar a Telegram | SiBlock no tiene internet o tu red bloquea `api.telegram.org` |
+
+3. Activa **Mandarme avisos por Telegram**.
+
+El panel nunca vuelve a mostrar el token, solo «guardado: sí o no». Para cambiarlo, pega el nuevo y
+pulsa Guardar. **Borrar el token** lo quita de la placa y apaga los avisos. El token tampoco va en
+el respaldo, y "borrar la configuración" (BOOT 10 s) lo borra.
+
+Topes: un mensaje de prueba cada 30 s y como mucho 20 mensajes por hora entre todos. Si un aviso no
+puede salir (sin internet), no se vuelve a intentar; el panel muestra cómo salió el último.
+
 ## Aparatos de la casa *(fase 5)*
 
 En el panel (con sesión), sección **Aparatos**, debajo de "Bloqueo". Cada aparato sale con su
@@ -283,7 +346,8 @@ fuente** (falta verificar): tómalo como una idea, no como una medida. Con 0 no 
 ## Respaldo *(fase 5)*
 
 Sección **Respaldo** del panel. "El respaldo guarda tus reglas, los nombres de los aparatos, los
-horarios, las listas elegidas y la opción de Private Relay. No guarda el WiFi ni la contraseña."
+horarios, las listas elegidas y la opción de Private Relay. No guarda el WiFi, la contraseña ni los
+datos de Telegram."
 
 - **Bajar respaldo**: descarga `siblock-respaldo-AAAA-MM-DD.txt`.
 - **Subir respaldo**: eliges el archivo; el panel lo revisa y muestra un resumen (cuántas reglas,
@@ -295,7 +359,8 @@ Sirve para cambiar de placa o tener una de repuesto. Es un archivo privado: guá
 no lo compartas. Lleva los nombres de los aparatos, los horarios de la casa y datos que sirven para
 reconocer a cada aparato. Los nombres siguen valiendo en otra placa porque el
 respaldo lleva el número al azar con que se hacen las huellas. Las opciones de "Compartir con
-SiBlock" no van en el respaldo: la placa nueva empieza con todo apagado.
+SiBlock" y los avisos por Telegram (ni el token ni el chat) no van en el respaldo: la placa nueva
+empieza con todo apagado.
 
 ## Botón BOOT
 
@@ -357,6 +422,7 @@ BOOT 10 s o más. El LED se apaga, imprime `[boot] borrando la configuración` y
 | El número de instalación (`install_id`): se crea otro nuevo *(fase 3)* | |
 | Nombres de los aparatos, horarios y hora de la casa (`/familia.txt`) *(fase 5)* | |
 | Las listas elegidas (clave `lists` de la NVS: vuelve a quedar solo la general) *(fase 5)* | |
+| Avisos por Telegram: el token del bot, el número de chat y qué avisos (vuelven a quedar apagados) | |
 
 Después del borrado, al arrancar no hay WiFi: dalo por USB desde la página o por el modo de
 configuración (con la **nueva** contraseña de respaldo, que sale por la serie y en la página).
@@ -388,6 +454,8 @@ Para borrar también la lista y las reglas: "borrar todo" en el instalador o `pi
 | `[web] <ip> bloqueada N s por contraseñas malas` | Bloqueo por intentos |
 | `[nube] aviso diario: ok` / `falló` *(fase 3)* | Salió el aviso diario (solo con "Compartir datos anónimos") |
 | `[nube] versión publicada: vX.Y.Z` / `no se pudo leer` *(fase 3)* | Consulta de versión (solo con "Avisarme de versiones nuevas") |
+| `[telegram] aviso: ok` / `token` / `chat` / `bloqueado` / `limite` / `sin_internet` / `rechazado` | Cómo salió un aviso por Telegram (nunca sale el token ni el texto) |
+| `[telegram] token borrado` | Se pulsó «Borrar el token» |
 | `STATS,<consultas>,<bloqueadas>,<dominios>,<ram_libre>` | Cada 5 s, para leerlo desde otra placa |
 | Bytes que empiezan con `IMPROV` | Respuestas de Improv para el instalador; se pueden ignorar |
 

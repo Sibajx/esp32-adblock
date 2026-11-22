@@ -478,16 +478,22 @@ WiFiClient WiFiServer::available() {
 }
 
 static const char kCloudBase[] = "https://siblock.s-dev.win";
+static const char kTelegramBase[] = "https://api.telegram.org";
 
 bool HTTPClient::begin(WiFiClient& c, const char* url) {
   client_ = &c;
   url_ = url;
-  cloud_ = blocked_ = false;
+  cloud_ = blocked_ = telegram_ = false;
   if (url_.rfind(kCloudBase, 0) == 0) {
     const char* fake = getenv("SIM_CLOUD_URL");
     cloud_ = true;
     if (fake && *fake) url_ = fake + url_.substr(sizeof kCloudBase - 1);
     else blocked_ = true;  // las pruebas nunca tocan el servidor de verdad
+  } else if (url_.rfind(kTelegramBase, 0) == 0) {
+    const char* fake = getenv("SIM_TELEGRAM_URL");
+    telegram_ = true;
+    if (fake && *fake) url_ = fake + url_.substr(sizeof kTelegramBase - 1);
+    else blocked_ = true;  // el simulador nunca habla con api.telegram.org
   }
   return url_.rfind("https://", 0) == 0 || url_.rfind("file://", 0) == 0 ||
          url_.rfind("http://127.0.0.1:", 0) == 0;
@@ -503,6 +509,14 @@ int HTTPClient::run(const char* method, const std::string* body) {
     Serial.printf("[sim] nube %s %s%s\n", method, slash == std::string::npos ? "/" : url_.c_str() + slash,
                   blocked_ ? " (sin SIM_CLOUD_URL: no sale)" : "");
     if (blocked_) return -1;
+  } else if (telegram_) {
+    // La ruta lleva el token (/bot<token>/sendMessage): en el registro va tapado.
+    size_t p = url_.find("/bot", url_.find("://") + 3);
+    size_t slash = p == std::string::npos ? std::string::npos : url_.find('/', p + 4);
+    Serial.printf("[sim] telegram %s /bot<oculto>%s%s\n", method,
+                  slash == std::string::npos ? "" : url_.c_str() + slash,
+                  blocked_ ? " (sin SIM_TELEGRAM_URL: no sale)" : "");
+    if (blocked_) return -1;
   } else if (getenv("SIM_HTTP_FAIL")) {
     return -1;
   }
@@ -513,7 +527,7 @@ int HTTPClient::run(const char* method, const std::string* body) {
   tmp_ = tmpl;
   std::string bodyFile;
   // curl sin shell: los argumentos van separados.
-  std::vector<std::string> args = {"curl", "-sS", "-X", method, "--max-time", cloud_ ? "8" : "120",
+  std::vector<std::string> args = {"curl", "-sS", "-X", method, "--max-time", cloud_ || telegram_ ? "8" : "120",
                                    "-o", tmp_, "-w", "%{http_code}", "-A", userAgent_};
   if (follow_) args.push_back("-L");
   for (auto& h : headers_) {

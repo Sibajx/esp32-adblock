@@ -71,7 +71,7 @@ Si algo se traba, el botón **BOOT** de la placa te saca del apuro:
 |---|---|
 | Un toque (menos de 2 s) | Puedes crear la contraseña del panel durante 30 min |
 | Entre 3 y 8 s | Abre la red `SiBlock-XXXX` para darle otro WiFi (usa la contraseña de respaldo). También se abre sola si lleva 10 min sin poder entrar a tu WiFi |
-| 10 s o más | Borra el WiFi, las contraseñas, los nombres de los aparatos, los horarios, las listas elegidas, la opción de Private Relay, la historia de las gráficas y las opciones de Compartir con SiBlock (vuelven a quedar apagadas, con la lista de permitidos de la comunidad; el número de instalación cambia). Tus reglas y la lista bajada se quedan |
+| 10 s o más | Borra el WiFi, las contraseñas, los nombres de los aparatos, los horarios, las listas elegidas, la opción de Private Relay, la historia de las gráficas, las opciones de Compartir con SiBlock (vuelven a quedar apagadas, con la lista de permitidos de la comunidad; el número de instalación cambia) y los avisos por Telegram (con el token del bot). Tus reglas y la lista bajada se quedan |
 
 ## Caja para imprimir
 
@@ -138,6 +138,7 @@ y la IP no se guardan ([`docs/seguridad.md`](docs/seguridad.md#aparatos-con-nomb
 | Página de instalación y guías (router, FortiGate, obstáculos); *(fase 3)* reportes, Contáctanos, estadísticas, privacidad; *(fase 5)* versión en inglés (`site/en/`), "¿Qué dice la luz?" y botón de apoyo opcional | `site/` |
 | *(Fase 3)* Opciones "Compartir con SiBlock" y cliente HTTPS hacia el Worker | `src/cloud.*`, `lib/siblock_core/cloud.*` |
 | Permitidos de la comunidad (opción apagada de fábrica; `/comunidad.bin`) | `src/community_store.*`, `lib/siblock_core/community.*` |
+| Avisos por Telegram al dueño con su propio bot (apagados de fábrica; el token nunca sale del panel) | `src/telegram.*`, `lib/siblock_core/notify.*` |
 | *(Fase 3)* Worker `siblock-api` + D1 (reportes, estadísticas, Contáctanos, permitidos de la comunidad); no lo publica CI | `cloud/` → `cd cloud && npm test` |
 | CI (pruebas en cada push) y publicación de versiones | `.github/` |
 

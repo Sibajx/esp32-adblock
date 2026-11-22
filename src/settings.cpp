@@ -10,6 +10,7 @@
 #include "cloud.h"
 #include "config.h"
 #include "lists.h"
+#include "notify.h"
 #include "siblock_crypto.h"
 #include "siblock_text.h"
 
@@ -221,6 +222,28 @@ bool setCommunity(bool on) { return setFlag(NVS_COMMUNITY, on); }
 bool relayBlock() { return gOpen && gPrefs.isKey(NVS_RELAY_BLOCK) && gPrefs.getUInt(NVS_RELAY_BLOCK, 0) == 1; }
 
 bool setRelayBlock(bool on) { return gOpen && gPrefs.putUInt(NVS_RELAY_BLOCK, on ? 1 : 0) > 0; }
+
+bool hasTelegramToken() { return gOpen && gPrefs.isKey(NVS_TG_TOKEN); }
+String telegramToken() { return getStr(NVS_TG_TOKEN); }
+bool setTelegramToken(const String& token) {
+  return gOpen && siblock::validTelegramToken(str(token)) && putStr(NVS_TG_TOKEN, token);
+}
+void clearTelegramToken() { removeKey(NVS_TG_TOKEN); }
+String telegramChat() { return getStr(NVS_TG_CHAT); }
+bool setTelegramChat(const String& chat) {
+  return gOpen && siblock::validTelegramChatId(str(chat)) && putStr(NVS_TG_CHAT, chat);
+}
+bool telegramOn() { return flagOn(NVS_TG_ON); }
+bool setTelegramOn(bool on) { return setFlag(NVS_TG_ON, on); }
+uint8_t telegramEvents() {
+  if (!gOpen || !gPrefs.isKey(NVS_TG_EVENTS)) return kTgAll;
+  return uint8_t(gPrefs.getUInt(NVS_TG_EVENTS, kTgAll) & kTgAll);
+}
+bool setTelegramEvents(uint8_t mask) { return gOpen && mask <= kTgAll && gPrefs.putUInt(NVS_TG_EVENTS, mask) > 0; }
+uint32_t telegramWeek() { return gOpen && gPrefs.isKey(NVS_TG_WEEK) ? gPrefs.getUInt(NVS_TG_WEEK, 0) : 0; }
+bool setTelegramWeek(uint32_t day) { return gOpen && gPrefs.putUInt(NVS_TG_WEEK, day) > 0; }
+String telegramFirmware() { return getStr(NVS_TG_FW); }
+bool setTelegramFirmware(const String& v) { return gOpen && putStr(NVS_TG_FW, v); }
 
 static uint8_t readMask(const char* key) {
   if (!gOpen || !gPrefs.isKey(key)) return siblock::kListsDefault;

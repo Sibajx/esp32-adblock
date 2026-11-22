@@ -5,6 +5,7 @@
   python3 test_sim.py --lento  # además espera 70 s a que venza una pausa de 1 min
   python3 test_sim.py --solo-nuevas  # solo las secciones con placas propias (12 en adelante)
   python3 test_sim.py --solo-nube    # solo la sección 18 (nube)
+  python3 test_sim.py --solo-telegram  # solo la sección 18g (avisos por Telegram)
   python3 test_sim.py --solo-fase5   # solo las secciones 19 a 23 (fase 5)
 """
 import base64
@@ -14,6 +15,7 @@ import hashlib
 import http.server as httpserver
 import json
 import os
+import re
 import shutil
 import socket
 import statistics
@@ -1161,6 +1163,256 @@ def nube_comunidad():
             f.close()
 
 
+TG_TOKEN = "123456789:AAH-prueba_" + "x" * 24 + "Zq9"
+TG_CHAT = "987654321"
+
+
+def tg_estado(f, tok):
+    code, body, _ = f.http("GET", "/api/telegram", token=tok)
+    return (json.loads(body) if code == 200 else {}), body
+
+
+def tg_envios(tg):
+    return [p for p in tg.lista() if p["ruta"].endswith("/sendMessage")]
+
+
+def tg_campos(p):
+    import urllib.parse
+    return dict(urllib.parse.parse_qsl(p["cuerpo"].decode()))
+
+
+def tg_probar(f, tok, t):
+    """Adelanta 31 s, pide el mensaje de prueba y espera a que se mande. Devuelve (código, reloj, estado)."""
+    t += 31000
+    f.set_clock(t)
+    code = f.http("POST", "/api/telegram/test", token=tok)[0]
+    esperar(lambda: not tg_estado(f, tok)[0].get("pending", True), 10)
+    return code, t, tg_estado(f, tok)[0]
+
+
+def nube_telegram():
+    print("\n18g. Avisos por Telegram (servidor de Telegram de mentira)")
+    ruta = f"/bot{TG_TOKEN}/sendMessage"
+    salidas = []
+    with NubeFalsa() as tg:
+        env = {"SIM_TELEGRAM_URL": tg.url}
+        f = Fresh(nvs=SEED_WIFI, env=env)
+        try:
+            tok = crear_clave(f, "clave-telegram-1")
+            check(f.http("GET", "/api/telegram")[0] == 401, "GET /api/telegram sin sesión -> 401")
+            check(f.http("GET", "/api/telegram", csrf=False, token=tok)[0] == 403, "sin anti-CSRF -> 403")
+            check(f.http("POST", "/api/telegram", {"token": TG_TOKEN})[0] == 401, "POST sin sesión -> 401")
+            check(f.http("POST", "/api/telegram/test", {}, token=False)[0] == 401, "prueba sin sesión -> 401")
+            st, _ = tg_estado(f, tok)
+            check(st == {"on": False, "tokenSaved": False, "chat": "", "reboot": True, "listFail": True, "weekly": True,
+                         "last": "never", "lastCode": 0, "lastAt": 0, "pending": False},
+                  f"de fábrica: apagado, sin token ni chat ({st})")
+
+            _, page, _ = f.http("GET", "/")
+            for texto in ("Avisos por Telegram", 'id="tgtok" type="password"', "Borrar el token",
+                          "Mandar mensaje de prueba", "La placa se reinició", "La lista no se pudo actualizar",
+                          "Resumen semanal", "Mandarme avisos por Telegram", "@BotFather"):
+                check(texto in page, f"el panel trae «{texto}»")
+
+            # Apagado no sale nada (ni con la lista fallando: SIM_HTTP_FAIL).
+            check(f.http("POST", "/api/update", token=tok)[0] == 202, "pedir bajar la lista (va a fallar)")
+            t = adelantar(f, 0, 25)
+            tok = entrar(f, "clave-telegram-1")
+            check(not tg.lista(), f"apagado: 25 h sin mandar nada ({len(tg.lista())})")
+            check(b"[sim] telegram" not in f.output(), "el registro no anota ningún envío")
+
+            # Revisión de lo que llega: si algo no vale, no se guarda nada.
+            malos = ({"token": "123:abc"}, {"token": TG_TOKEN + "/x"}, {"token": "12345:" + "a" * 29},
+                     {"chat": "abc"}, {"chat": "1" * 21}, {"chat": "12&text=x"}, {"on": "2"}, {"weekly": "si"},
+                     {}, {"otra": "1"}, {"on": "1"}, {"on": "1", "token": TG_TOKEN},
+                     {"token": TG_TOKEN, "clearToken": "1"}, {"token": TG_TOKEN, "chat": TG_CHAT, "reboot": "x"})
+            for malo in malos:
+                code, body, _ = f.http("POST", "/api/telegram", malo, token=tok)
+                check(code == 400, f"POST /api/telegram {str(malo)[:60]} -> 400 ({code} {body[:40]})")
+            code, body, _ = f.http("POST", "/api/telegram", {"on": "1"}, token=tok)
+            check("falta_token" in body, f"encender sin token dice falta_token ({body})")
+            check(not [k for k in f.nvs() if k.startswith("tg_")], f"tras los 400 no se guardó nada ({sorted(f.nvs())})")
+            check(f.http("POST", "/api/telegram/test", token=tok)[0] == 409, "prueba sin token ni chat -> 409")
+
+            # Guardar token y chat (con espacios alrededor, como al copiar y pegar).
+            code, body, _ = f.http("POST", "/api/telegram", {"token": " " + TG_TOKEN + "\n", "chat": TG_CHAT,
+                                                             "weekly": "0"}, token=tok)
+            st = json.loads(body) if code == 200 else {}
+            check(code == 200 and st.get("tokenSaved") is True and st.get("chat") == TG_CHAT and st.get("on") is False
+                  and st.get("weekly") is False and st.get("reboot") is True, f"token y chat guardados, sigue apagado ({body})")
+            check(TG_TOKEN not in body and TG_TOKEN.split(":")[1] not in body, "la respuesta no trae el token")
+            check(f.nvs().get("tg_token") == TG_TOKEN and f.nvs().get("tg_chat") == TG_CHAT, "token y chat en la NVS")
+
+            # Mensaje de prueba.
+            code, t, st = tg_probar(f, tok, t)
+            check(code == 202, f"POST /api/telegram/test -> 202 ({code})")
+            envs = tg_envios(tg)
+            check(len(envs) == 1 and envs[0]["ruta"] == ruta and envs[0]["metodo"] == "POST",
+                  f"un POST a /bot<token>/sendMessage ({[e['ruta'][:12] for e in envs]})")
+            if envs:
+                c = tg_campos(envs[0])
+                check(set(c) == {"chat_id", "text"} and c.get("chat_id") == TG_CHAT and "prueba" in c.get("text", ""),
+                      f"chat_id y text de prueba ({c})")
+                texto = envs[0]["cuerpo"].decode()
+                check("127.0.0." not in texto and "simulador" not in texto and "CasaDemo" not in texto
+                      and not re.search(r"([0-9a-f]{2}[:-]){5}[0-9a-f]{2}", texto, re.I), "sin IPs, MACs ni el WiFi")
+                check("application/x-www-form-urlencoded" in envs[0]["headers"].get("content-type", ""), "como formulario")
+                check(envs[0]["headers"].get("user-agent", "").startswith("SiBlock/"), "User-Agent SiBlock/…")
+            check(st.get("last") == "ok" and st.get("lastCode") == 200 and st.get("lastAt", 0) > 1700000000,
+                  f"el panel dice ok, 200 y cuándo ({st})")
+            check(f.http("POST", "/api/telegram/test", token=tok)[0] == 429, "otra prueba enseguida -> 429 (una cada 30 s)")
+            time.sleep(1)
+            check(len(tg_envios(tg)) == 1, "y no sale")
+
+            # Lo que contesta Telegram no llega al panel: solo el código.
+            for codigo, nombre in ((401, "token"), (400, "chat"), (403, "bloqueado"), (500, "rechazado")):
+                tg.respuestas[ruta] = (codigo, '{"ok":false,"description":"DETALLE-SECRETO de Telegram"}')
+                _, t, st = tg_probar(f, tok, t)
+                _, body = tg_estado(f, tok)
+                check(st.get("last") == nombre and st.get("lastCode") == codigo and "DETALLE" not in body,
+                      f"Telegram {codigo} -> last={nombre} sin repetir lo que contestó ({st.get('last')}, {st.get('lastCode')})")
+            del tg.respuestas[ruta]
+
+            # Tope de 20 por hora entre todos los envíos.
+            antes = len(tg_envios(tg))
+            vistos = None
+            for _ in range(22):
+                _, t, st = tg_probar(f, tok, t)
+                if st.get("last") == "limite":
+                    vistos = len(tg_envios(tg))
+                    break
+            check(vistos == 20, f"a los 20 envíos en una hora se corta ({vistos}, {antes} antes)")
+            check(st.get("last") == "limite" and st.get("lastCode") == 429, f"el panel dice limite ({st})")
+            t += 3600000
+            f.set_clock(t)
+            tok = entrar(f, "clave-telegram-1")
+            _, t, st = tg_probar(f, tok, t)
+            check(st.get("last") == "ok" and len(tg_envios(tg)) == 21, f"una hora después vuelve a salir ({st.get('last')})")
+
+            # Encender y la lista que no se puede bajar (SIM_HTTP_FAIL): aviso a la tercera falla seguida.
+            code, body, _ = f.http("POST", "/api/telegram", {"on": "1"}, token=tok)
+            check(code == 200 and json.loads(body).get("on") is True and f.nvs().get("tg_on") == "1",
+                  f"on=1 -> 200 ({code})")
+            antes = len(tg_envios(tg))
+            check(f.http("POST", "/api/update", token=tok)[0] == 202, "pedir bajar la lista")
+            esperar(lambda: f.stats().get("error"), 10)
+            for paso in (61000, 5 * 60000 + 1000):
+                time.sleep(1)
+                t += paso
+                f.set_clock(t)
+            avisos = lambda: [tg_campos(p).get("text", "") for p in tg_envios(tg)[antes:]]
+            check(esperar(lambda: any("no pudo actualizar la lista" in x for x in avisos()), 15),
+                  f"a la tercera falla avisa que la lista no se pudo actualizar ({avisos()})")
+            n = len(tg_envios(tg))
+            t += 30 * 60000 + 1000
+            f.set_clock(t)
+            time.sleep(3)
+            check(len(tg_envios(tg)) == n, "la cuarta falla (30 min después) no repite el aviso")
+
+            # El respaldo no lleva token ni chat, y no se aceptan al subirlo.
+            tok = entrar(f, "clave-telegram-1")
+            code, texto, _ = f.http("GET", "/api/backup", token=tok)
+            check(code == 200 and TG_TOKEN not in texto and TG_TOKEN.split(":")[1] not in texto and TG_CHAT not in texto
+                  and "telegram" not in texto.lower(), "el respaldo no trae el token ni el chat")
+            malo = texto.replace("fin\n", "telegram " + TG_TOKEN + "\nfin\n")
+            check(subir_pedazo(f, tok, 0, malo.encode())[0] == 200, "subir un respaldo con una línea de Telegram")
+            code, body, _ = f.http("POST", "/api/restore/check", {}, token=tok)
+            check(code == 400 and "no se entiende" in body, f"se rechaza entero ({code} {body[:60]})")
+
+            # Ninguna respuesta del panel trae el token.
+            for ruta_panel in ("/api/telegram", "/api/cloud", "/api/options", "/api/detail", "/api/stats",
+                               "/api/history", "/api/devices", "/api/backup", "/"):
+                _, body, _ = f.http("GET", ruta_panel, token=tok)
+                check(TG_TOKEN.split(":")[1] not in body, f"GET {ruta_panel} no trae el token")
+
+            # Reinicios: el aviso dice por qué, una vez por arranque.
+            detener(f)
+            salidas.append(f.output())
+            antes = len(tg_envios(tg))
+            with Fresh(dir=f.dir, env=dict(env, SIM_RESET_REASON="panic")) as g:
+                check(esperar(lambda: len(tg_envios(tg)) > antes, 15), "tras reiniciar manda un aviso")
+                txt = tg_campos(tg_envios(tg)[antes]).get("text", "") if len(tg_envios(tg)) > antes else ""
+                check("se reinició" in txt and "falla y se recuperó sola" in txt and "Lista:" in txt,
+                      f"«se reinició (tuvo una falla…)» con la lista ({txt})")
+                time.sleep(2)
+                check(len(tg_envios(tg)) == antes + 1, "uno solo por arranque")
+                check(g.nvs().get("tg_fw") == "dev", "guarda la versión con la que arrancó")
+                salidas.append(g.output())
+            with open(os.path.join(f.dir, "nvs.json")) as fh:
+                nvs = json.load(fh)
+            nvs["siblock"]["tg_fw"] = "v0.0.1"
+            with open(os.path.join(f.dir, "nvs.json"), "w") as fh:
+                json.dump(nvs, fh)
+            antes = len(tg_envios(tg))
+            with Fresh(dir=f.dir, env=env) as g:
+                check(esperar(lambda: len(tg_envios(tg)) > antes, 15), "otro arranque, otro aviso")
+                txt = tg_campos(tg_envios(tg)[antes]).get("text", "") if len(tg_envios(tg)) > antes else ""
+                check("(actualización)" in txt, f"con otra versión guardada dice «actualización» ({txt})")
+                tok = entrar(g, "clave-telegram-1")
+                # Sin el aviso de reinicio encendido, no sale.
+                check(g.http("POST", "/api/telegram", {"reboot": "0"}, token=tok)[0] == 200, "reboot=0")
+                salidas.append(g.output())
+            antes = len(tg_envios(tg))
+            with Fresh(dir=f.dir, env=env) as g:
+                time.sleep(3)
+                check(len(tg_envios(tg)) == antes, "con «La placa se reinició» apagado, no avisa")
+                tok = entrar(g, "clave-telegram-1")
+
+                # Borrar el token: apaga todo y la prueba ya no se puede.
+                code, body, _ = g.http("POST", "/api/telegram", {"clearToken": "1"}, token=tok)
+                st = json.loads(body) if code == 200 else {}
+                check(code == 200 and st.get("tokenSaved") is False and st.get("on") is False,
+                      f"clearToken=1 -> sin token y apagado ({body})")
+                check("tg_token" not in g.nvs() and g.nvs().get("tg_on") == "0", "la NVS ya no tiene el token")
+                check(g.http("POST", "/api/telegram/test", token=tok)[0] == 409, "prueba sin token -> 409")
+
+                # Borrar la configuración (BOOT 10 s) borra todo lo de Telegram.
+                check(g.http("POST", "/api/telegram", {"token": TG_TOKEN, "on": "1"}, token=tok)[0] == 200,
+                      "token otra vez y encendido")
+                g.press(True)
+                time.sleep(0.5)
+                g.set_clock(11000)
+                try:
+                    rc = g.proc.wait(timeout=15)
+                except subprocess.TimeoutExpired:
+                    rc = None
+                g.press(False)
+                check(rc == 3, f"BOOT 10 s borra la configuración ({rc})")
+                quedan = [k for k in g.nvs() if k.startswith("tg_")]
+                check(not quedan, f"NVS sin nada de Telegram ({quedan})")
+                salidas.append(g.output())
+            with open(os.path.join(f.dir, ".clock_ms"), "w") as fh:
+                fh.write("0")
+            antes = len(tg_envios(tg))
+            with Fresh(dir=f.dir, env=env) as g:
+                time.sleep(3)
+                check(len(tg_envios(tg)) == antes, "tras borrar, el arranque no manda nada")
+                salidas.append(g.output())
+        finally:
+            f.close()
+
+    # Sin SIM_TELEGRAM_URL el simulador no sale a api.telegram.org.
+    with Fresh(nvs=SEED_WIFI) as h:
+        tok = crear_clave(h, "clave-telegram-2")
+        check(h.http("POST", "/api/telegram", {"token": TG_TOKEN, "chat": TG_CHAT}, token=tok)[0] == 200,
+              "token y chat guardados")
+        _, _, st = tg_probar(h, tok, 0)
+        salida = h.output()
+        check(b"[sim] telegram POST /bot<oculto>/sendMessage (sin SIM_TELEGRAM_URL: no sale)" in salida,
+              "sin SIM_TELEGRAM_URL: se anota y no sale")
+        check(st.get("last") == "sin_internet", f"el panel dice sin_internet ({st.get('last')})")
+        salidas.append(salida)
+
+    # El token no aparece en ningún registro (las placas de esta sección y sim/sim.log).
+    log = os.path.join(HERE, "sim.log")
+    if os.path.exists(log):
+        with open(log, "rb") as fh:
+            salidas.append(fh.read())
+    secreto = TG_TOKEN.split(":")[1].encode()
+    check(salidas and all(secreto not in x for x in salidas), f"el token no sale en los registros ({len(salidas)} revisados)")
+    check(any(b"[sim] telegram POST /bot<oculto>/sendMessage" in x for x in salidas), "el registro tapa la ruta")
+
+
 def nube():
     """Sección 18: la nube (Worker de mentira)."""
     nube_apagada()
@@ -1170,6 +1422,7 @@ def nube():
     nube_borrar()
     nube_guardar_falla()
     nube_comunidad()
+    nube_telegram()
 
 
 # ---------- Fase 5: aparatos de la familia ----------
@@ -1678,6 +1931,11 @@ def nuevas():
 
 def main():
     import urllib.parse  # noqa: F401  (usado por http)
+
+    if "--solo-telegram" in sys.argv:
+        nube_telegram()
+        print(f"\n{'TODO BIEN' if not fails else f'{fails} FALLAS'}")
+        return 1 if fails else 0
 
     if "--solo-nube" in sys.argv:
         nube()

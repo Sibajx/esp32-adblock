@@ -23,6 +23,7 @@
 #include "settings.h"
 #include "siblock_crypto.h"
 #include "siblock_text.h"
+#include "telegram.h"
 #include "usage.h"
 
 namespace {
@@ -1130,6 +1131,110 @@ void handleCloudPost() {
   sendCloudStatus();
 }
 
+// ---------- Avisos por Telegram (apagados de fábrica) ----------
+// El token solo se escribe: ninguna respuesta lo trae (solo "tokenSaved"), no se imprime y no va
+// en el respaldo. El envío no se hace aquí: el panel lo pide y loop() lo manda (watchTelegram).
+
+siblock::Cooldown gTestGate;  // un mensaje de prueba cada 30 s
+
+void sendTelegramStatus() {
+  const telegram::Status& st = telegram::status();
+  uint8_t ev = settings::telegramEvents();
+  String j;
+  j.reserve(220);
+  j += "{\"on\":";
+  j += settings::telegramOn() ? "true" : "false";
+  j += ",\"tokenSaved\":";
+  j += settings::hasTelegramToken() ? "true" : "false";
+  j += ",\"chat\":";
+  appendJsonString(j, settings::telegramChat().c_str());  // solo [-0-9]: se validó al guardarlo
+  j += ",\"reboot\":";
+  j += (ev & settings::kTgReboot) ? "true" : "false";
+  j += ",\"listFail\":";
+  j += (ev & settings::kTgListFail) ? "true" : "false";
+  j += ",\"weekly\":";
+  j += (ev & settings::kTgWeekly) ? "true" : "false";
+  j += ",\"last\":\"";
+  j += siblock::telegramResultName(st.last);
+  j += "\",\"lastCode\":" + String(st.lastCode);
+  j += ",\"lastAt\":" + String(unsigned(st.lastAt));
+  j += ",\"pending\":";
+  j += (st.pending & telegram::kTest) ? "true" : "false";
+  j += "}";
+  sendJson(200, j);
+}
+
+void handleTelegramGet() { sendTelegramStatus(); }
+
+// Campos (todos opcionales, al menos uno): token, chat, on, reboot, listFail, weekly (0/1) y
+// clearToken=1. Primero se revisa todo; si algo no vale, no se cambia nada.
+// Borra el texto al salir (por cualquier return): así el token no queda en la RAM.
+struct WipeOnExit {
+  String& s;
+  ~WipeOnExit() {
+    if (s.length()) memset(const_cast<char*>(s.c_str()), 0, s.length());
+  }
+};
+
+void handleTelegramPost() {
+  // Campos de 0/1: -1 = no vino, 0, 1; 2 = vino con otro valor.
+  static const char* const kBits[] = {"on", "reboot", "listFail", "weekly", "clearToken"};
+  int8_t bits[5];
+  bool any = false, bad = false;
+  for (int i = 0; i < 5; i++) {
+    bits[i] = -1;
+    if (!bodyHas(kBits[i])) continue;
+    any = true;
+    String v = bodyArg(kBits[i]);
+    bits[i] = v == "1" ? 1 : v == "0" ? 0 : 2;
+    bad = bad || bits[i] == 2;
+  }
+  bool hasToken = bodyHas("token"), hasChat = bodyHas("chat");
+  String token = hasToken ? bodyArg("token") : String();
+  WipeOnExit wipeToken{token};
+  token.trim();  // en su lugar, sin otra copia
+  String chat = hasChat ? bodyArg("chat") : String();
+  chat.trim();
+  // El cuerpo traía el token: se borra de la RAM del panel ya mismo.
+  memset(gBody, 0, sizeof gBody);
+  gBodyLen = 0;
+  if (bad || (!any && !hasToken && !hasChat)) return sendError(400, "datos");
+  bool clear = bits[4] == 1;
+  if (hasToken && (clear || !siblock::validTelegramToken(std::string(token.c_str(), token.length()))))
+    return sendError(400, "token");
+  if (hasChat && !siblock::validTelegramChatId(std::string(chat.c_str(), chat.length()))) return sendError(400, "chat");
+  // Encender pide token y chat (los que vienen o los guardados).
+  bool wantOn = bits[0] >= 0 ? bits[0] == 1 : settings::telegramOn();
+  if (clear) wantOn = false;
+  if (wantOn && !hasToken && !settings::hasTelegramToken()) return sendError(400, "falta_token");
+  if (wantOn && !hasChat && settings::telegramChat().isEmpty()) return sendError(400, "falta_chat");
+  uint8_t ev = settings::telegramEvents();
+  const uint8_t kEv[3] = {settings::kTgReboot, settings::kTgListFail, settings::kTgWeekly};
+  for (int i = 0; i < 3; i++)
+    if (bits[i + 1] >= 0) ev = bits[i + 1] ? uint8_t(ev | kEv[i]) : uint8_t(ev & ~kEv[i]);
+  // Apagar va primero y encender al final: si algo falla a medias, no queda encendido sin querer.
+  if (!wantOn && settings::telegramOn() && !settings::setTelegramOn(false)) return sendError(500, "guardar");
+  if (clear) settings::clearTelegramToken();
+  if (hasToken && !settings::setTelegramToken(token)) return sendError(500, "guardar");
+  if (hasChat && !settings::setTelegramChat(chat)) return sendError(500, "guardar");
+  if (ev != settings::telegramEvents() && !settings::setTelegramEvents(ev)) return sendError(500, "guardar");
+  if (wantOn && !settings::telegramOn() && !settings::setTelegramOn(true)) return sendError(500, "guardar");
+  // Apagados, los avisos en espera no salen (watchTelegram los suelta). Sin token, ni la prueba.
+  if (clear) {
+    telegram::status().pending = 0;
+    Serial.println("[telegram] token borrado");
+  }
+  sendTelegramStatus();
+}
+
+// Pide un mensaje de prueba. 202: loop() lo manda en un momento; el resultado sale en GET.
+void handleTelegramTest() {
+  if (!settings::hasTelegramToken() || settings::telegramChat().isEmpty()) return sendError(409, "falta");
+  if (!gTestGate.take(millis(), 30000)) return sendError(429, "espera");
+  telegram::status().pending |= telegram::kTest;
+  sendJson(202, "{\"ok\":true}");
+}
+
 // ---------- Reportes desde el panel (solo con "compartir" encendido) ----------
 // Solo opciones fijas: lo que se manda es siempre un cuerpo armado aquí con valores de las listas
 // del contrato (o un dominio con [a-z0-9.-]); nunca texto que escribió la persona tal cual.
@@ -1282,6 +1387,9 @@ void begin(BlockList* list, DnsServer* dns, volatile bool* updateRequested, sibl
   server.on("/api/options", HTTP_POST, guarded<true, handleOptionsPost>, onBodyChunk);
   server.on("/api/cloud", HTTP_GET, guarded<true, handleCloudGet>);
   server.on("/api/cloud", HTTP_POST, guarded<true, handleCloudPost>, onBodyChunk);
+  server.on("/api/telegram", HTTP_GET, guarded<true, handleTelegramGet>);
+  server.on("/api/telegram", HTTP_POST, guarded<true, handleTelegramPost>, onBodyChunk);
+  server.on("/api/telegram/test", HTTP_POST, guarded<true, handleTelegramTest>, onBodyChunk);
   server.on("/api/report/modem", HTTP_POST, guarded<true, handleReportModem>, onBodyChunk);
   server.on("/api/report/blocked", HTTP_POST, guarded<true, handleReportBlocked>, onBodyChunk);
   server.on("/api/wifi/scan", HTTP_GET, guarded<false, handleWifiScan>);

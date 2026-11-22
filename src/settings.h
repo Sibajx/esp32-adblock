@@ -39,5 +39,22 @@ bool versionCheck();  // "Avisarme de versiones nuevas": solo el valor 1 cuenta
 bool setVersionCheck(bool on);
 bool community();  // "Usar los permitidos de la comunidad": solo el valor 1 cuenta
 bool setCommunity(bool on);
+// Avisos por Telegram (apagados de fábrica). El token nunca se imprime ni lo devuelve el panel:
+// solo telegram.cpp lo lee para mandar. set* validan (lib/siblock_core/notify.h).
+constexpr uint8_t kTgReboot = 1, kTgListFail = 2, kTgWeekly = 4, kTgAll = 7;
+bool hasTelegramToken();
+String telegramToken();
+bool setTelegramToken(const String& token);  // false si no es válido o no se pudo guardar
+void clearTelegramToken();
+String telegramChat();  // "" si no hay
+bool setTelegramChat(const String& chat);
+bool telegramOn();  // solo el valor 1 guardado cuenta
+bool setTelegramOn(bool on);
+uint8_t telegramEvents();  // bits kTg*; si falta, kTgAll
+bool setTelegramEvents(uint8_t mask);
+uint32_t telegramWeek();  // 0 si nunca
+bool setTelegramWeek(uint32_t day);
+String telegramFirmware();  // "" si no hay
+bool setTelegramFirmware(const String& v);
 void factoryReset();  // borra el espacio "siblock" entero (no toca la lista ni las reglas)
 }  // namespace settings
