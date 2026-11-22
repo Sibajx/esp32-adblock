@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Guía del router · SiBlock</title>
+  <meta name="description" content="Cómo decirle a tu módem que use SiBlock, según la marca o quién te da el internet. Y qué hacer si tu módem no deja cambiar el DNS.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="no-referrer">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="estilos.css">
+  <script type="module" src="js/inicio.js"></script>
+  <script type="module" src="js/guia-router.js"></script>
+</head>
+<body>
+  <a class="saltar" href="#principal">Ir al contenido</a>
+
+  <header class="cabecera">
+    <a class="marca" href="index.html" aria-label="SiBlock, inicio">
+      <img src="favicon.svg" alt="" width="28" height="28">
+      <span>SiBlock</span>
+    </a>
+    <nav aria-label="Secciones">
+      <ul>
+        <li><a href="index.html#paso-instalar">Instalar</a></li>
+        <li><a href="guia-router.html" aria-current="page">Guías</a></li>
+        <li><a href="obstaculos.html">Problemas comunes</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main id="principal">
+    <div class="cabeza-pagina">
+      <a class="volver" href="index.html#router">← Volver a la instalación</a>
+      <h1>Dile a tu módem que use SiBlock</h1>
+      <p class="entrada">
+        Elige tu módem o quién te da el internet y sigue los pasos. Antes de cambiar algo, toma una
+        foto de cómo estaba: si algo sale mal, lo regresas igual.
+      </p>
+      <p>
+        Vas a necesitar la dirección de tu SiBlock (algo como 192.168.1.50). La ves al terminar de
+        <a href="index.html#despues">instalar</a> o en tu panel.
+      </p>
+    </div>
+
+    <div id="elegir" class="elegir" hidden>
+      <div class="campo">
+        <label for="marca">¿Qué módem tienes?</label>
+        <select id="marca" name="marca"></select>
+      </div>
+      <div class="campo">
+        <label for="pais">¿En qué país vives?</label>
+        <select id="pais" name="pais"></select>
+      </div>
+      <div class="campo">
+        <label for="proveedor">¿Quién te da el internet?</label>
+        <select id="proveedor" name="proveedor"></select>
+      </div>
+    </div>
+
+    <section id="guia" aria-live="polite">
+      <h2>Cómo poner SiBlock en tu módem</h2>
+      <p class="aviso aviso-falta">Esta es la guía general: sirve para casi todos los módems.</p>
+      <p>Para entrar a tu módem prueba primero con: <strong>192.168.1.1</strong> o <strong>192.168.0.1</strong></p>
+      <ol class="pasos-router">
+        <li>Mira la etiqueta de abajo de tu módem: ahí vienen la dirección para entrar (casi siempre 192.168.1.1 o 192.168.0.1), el usuario y la contraseña.</li>
+        <li>Abre esa dirección en el navegador de un aparato conectado a tu WiFi y entra.</li>
+        <li>Busca la parte que diga DHCP, LAN o DNS.</li>
+        <li>Donde dice DNS primario, pon la dirección de tu SiBlock. Deja vacío el DNS secundario: si pones otro, los aparatos lo usan a ratos y se saltan SiBlock. Si te obliga a llenarlo, pon la misma dirección de tu SiBlock.</li>
+        <li>Si ves algo de DNS por IPv6, apágalo o pon ahí también tu SiBlock.</li>
+        <li>Guarda, y en cada aparato apaga y prende el WiFi.</li>
+        <li>Abre tu panel desde ese aparato: arriba debe decir que este aparato usa SiBlock.</li>
+      </ol>
+    </section>
+
+    <p class="aviso">
+      <strong>No olvides IPv6.</strong> Muchos módems reparten un segundo DNS por IPv6 sin avisar. Si
+      no lo apagas, algunos aparatos lo usan y se saltan SiBlock.
+    </p>
+
+    <section id="no-deja" class="bloque" aria-labelledby="titulo-no-deja">
+      <h2 id="titulo-no-deja">¿Tu módem no deja cambiar el DNS?</h2>
+      <p>
+        Pasa mucho con los módems que da la compañía de internet: la opción no aparece o está gris.
+        Tienes estas salidas:
+      </p>
+      <ul class="tareas">
+        <li>
+          <strong>Cámbialo en cada aparato.</strong> Es más trabajo, pero funciona con cualquier módem.
+          <a href="#por-aparato">Ver cómo hacerlo en cada aparato</a>.
+        </li>
+        <li>
+          <strong>Llama a soporte.</strong> Algunos proveedores abren esa opción si llamas y lo pides.
+        </li>
+        <li>
+          <strong>Más adelante:</strong> que SiBlock reparta las direcciones de tu casa en lugar del
+          módem. Todavía no está listo.
+        </li>
+      </ul>
+      <p>
+        ¿Tienes dos aparatos, el módem de la compañía y un router tuyo? Cambia el DNS en el router
+        tuyo, el que da el WiFi a tus aparatos.
+      </p>
+    </section>
+
+    <section id="por-aparato" class="bloque" aria-labelledby="titulo-por-aparato">
+      <h2 id="titulo-por-aparato">Cambiar el DNS en cada aparato</h2>
+      <p>
+        Así solo ese aparato pasa por SiBlock. Hazlo con cada uno que quieras cuidar. Ojo: si un día
+        apagas SiBlock, ese aparato se queda sin internet hasta que regreses esta opción a
+        “Automático”.
+      </p>
+
+      <div class="sistemas">
+        <div>
+          <h3>Windows 11</h3>
+          <p class="ruta">Configuración → Red e Internet → Wi-Fi → Propiedades de hardware</p>
+          <ol class="pasos-router">
+            <li>Junto a “Asignación de servidor DNS”, pulsa <strong>Editar</strong>.</li>
+            <li>Cambia de “Automático” a <strong>Manual</strong> y prende <strong>IPv4</strong>.</li>
+            <li>En “DNS preferido” escribe la dirección de tu SiBlock. Deja vacío el otro.</li>
+            <li>Pulsa <strong>Guardar</strong>.</li>
+          </ol>
+        </div>
+
+        <div>
+          <h3>Mac</h3>
+          <p class="ruta">Ajustes del Sistema (o Configuración del Sistema) → Wi-Fi → Detalles (junto a tu red) → DNS</p>
+          <ol class="pasos-router">
+            <li>Si hay direcciones en la lista, selecciónalas y pulsa el botón <strong>−</strong>.</li>
+            <li>Pulsa <strong>+</strong> y escribe la dirección de tu SiBlock.</li>
+            <li>Pulsa <strong>Aceptar</strong>.</li>
+          </ol>
+        </div>
+
+        <div>
+          <h3>iPhone y iPad</h3>
+          <p class="ruta">Ajustes (o Configuración) → Wi-Fi → toca la ⓘ junto a tu red → Configurar DNS</p>
+          <ol class="pasos-router">
+            <li>Elige <strong>Manual</strong>.</li>
+            <li>Borra las direcciones que haya con el círculo rojo.</li>
+            <li>Toca <strong>Agregar servidor</strong> (o Añadir servidor), escribe la dirección de tu SiBlock y toca <strong>Guardar</strong>.</li>
+          </ol>
+          <p class="nota">Si usas iCloud Private Relay, Safari puede saltarse SiBlock. Mira
+            <a href="obstaculos.html#en-aparatos">los problemas comunes</a>.</p>
+        </div>
+
+        <div>
+          <h3>Android</h3>
+          <p><span class="falta">Falta verificar</span> el menú cambia según la marca del teléfono.</p>
+          <p class="aviso">
+            En Android este cambio es delicado: para poner el DNS a mano, el teléfono te obliga a
+            escribir también su propia dirección. Si un dato queda mal, el teléfono se queda sin
+            internet en esa red. Si tu módem o router te deja, mejor cambia el DNS ahí
+            (<a href="#guia">al principio de esta guía</a>): así no tocas el teléfono.
+          </p>
+          <ol class="pasos-router">
+            <li>Antes de cambiar nada, abre los detalles de tu red WiFi y anota la
+              <strong>dirección IP</strong> del teléfono y la <strong>puerta de enlace</strong>
+              (o “router”). Si no ves la puerta de enlace, suele ser la dirección del módem, la que
+              usas para entrar a su página.</li>
+            <li>Mantén apretada tu red (o toca el engrane junto a ella), busca “Opciones avanzadas” o
+              “Ajustes de IP” y cambia a <strong>Estática</strong>.</li>
+            <li>Llena todo lo que pide:
+              <ul>
+                <li><strong>Dirección IP</strong>: la que anotaste del teléfono.</li>
+                <li><strong>Puerta de enlace</strong>: la que anotaste.</li>
+                <li><strong>Longitud del prefijo</strong>: deja el número que el teléfono ya
+                  muestra; casi siempre es 24 (<span class="falta">falta verificar</span> en tu red).</li>
+                <li><strong>DNS 1</strong>: la dirección de tu SiBlock. Deja vacío “DNS 2”.</li>
+              </ul>
+            </li>
+            <li>Guarda. Si el teléfono se queda sin internet, vuelve a poner “Ajustes de IP” en
+              <strong>DHCP</strong> y todo regresa como estaba.</li>
+          </ol>
+          <p class="aviso">
+            Ojo: con la dirección fija, más adelante el módem puede darle esa misma dirección a otro
+            aparato, y los dos se quedan sin internet a ratos. Para evitarlo, en la página del módem
+            “reserva” esa dirección para el teléfono (suele llamarse “Reserva de DHCP” o “IP fija”).
+            Si no puedes, usa este plan solo mientras arreglas el DNS en el módem.
+          </p>
+          <p class="aviso">
+            Busca también <strong>DNS privado</strong> (suele estar en Ajustes → Red e Internet o en
+            Más conexiones). Si tiene el nombre de una empresa, cámbialo a <strong>Desactivado</strong>:
+            si no, el teléfono se salta SiBlock.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="mas-ayuda" class="bloque" aria-labelledby="titulo-mas-ayuda">
+      <h2 id="titulo-mas-ayuda">¿Sigue sin funcionar?</h2>
+      <ul class="tareas">
+        <li>Abre tu panel desde el aparato que quieras revisar y pulsa <strong>Algo no funciona</strong>: te dice qué pasa.</li>
+        <li><a href="obstaculos.html">Problemas comunes</a>: firewalls, redes con varios routers, navegadores que se saltan SiBlock y lo que ningún bloqueador puede quitar.</li>
+        <li><a href="fortigate.html">¿Tienes un FortiGate?</a> Hay una guía para quien lo administra.</li>
+        <li><a href="contacto.html">Escríbenos</a> y te ayudamos.</li>
+      </ul>
+      <p>
+        ¿Ya lo lograste, o tu módem no deja? <a href="reporte.html">Cuéntanos qué módem tienes</a>:
+        así armamos la guía de tu marca para otras personas. Solo eliges opciones.
+      </p>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <p><a href="index.html">← Volver al inicio</a></p>
+    <p>
+      SiBlock es software libre bajo la licencia GPLv3.
+      <a href="https://github.com/Sibajx/esp32-adblock" rel="noopener noreferrer">Ver el código</a>.
+    </p>
+    <p>¿Conoces bien tu módem y quieres ayudar con su guía? Escribe a <a href="mailto:contacto@s-dev.win">contacto@s-dev.win</a>.</p>
+    <p class="pie-enlaces"><a href="privacidad.html">Privacidad</a> · <a href="contacto.html">Contáctanos</a> · <a href="estadisticas.html">Estadísticas</a> · <a href="en/" hreflang="en" lang="en">English</a></p>
+    <p class="nota">Esta página funciona sin cookies. Si cuenta visitas, lo hace sin saber quién eres.</p>
+  </footer>
+</body>
+</html>

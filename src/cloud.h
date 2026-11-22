@@ -1,0 +1,35 @@
+// Cliente HTTPS hacia siblock.s-dev.win. Quien llama decide si se puede salir a internet (las
+// opciones del panel, apagadas de fábrica); esto solo hace la petición.
+#pragma once
+#include <string>
+
+// Este archivo y lib/siblock_core/cloud.h se llaman igual: desde src/ "cloud.h" es siempre este,
+// así que la parte sin Arduino se trae por ruta. En PlatformIO, relativa a src/; en el
+// simulador, src/ se copia a sim/build/src/.
+#if __has_include("../lib/siblock_core/cloud.h")
+#include "../lib/siblock_core/cloud.h"
+#else
+#include "../../../lib/siblock_core/cloud.h"
+#endif
+
+namespace cloud {
+// kRejected: el servidor contestó 3xx, 4xx (salvo 429) o 5xx; kLimit: 429.
+enum class Result : uint8_t { kOk, kNoNet, kRejected, kLimit };
+// POST de JSON a SIBLOCK_CLOUD_BASE + path. 8 s de tope, User-Agent "SiBlock/<versión>",
+// sin seguir redirecciones. No hace nada si no hay WiFi o RAM seguida para TLS (kNoNet).
+Result postJson(const char* path, const std::string& body);
+// GET de SIBLOCK_CLOUD_BASE/version.json (no manda nada nuestro). Lee como mucho 1024 B.
+bool fetchLatestVersion(std::string& out);
+
+// Estado en RAM (se pierde al reiniciar; nada de esto va a la flash). Las opciones son una copia
+// de lo guardado en NVS: main.cpp las carga al arrancar y web.cpp las cambia tras guardarlas.
+enum class Ping : uint8_t { kNever, kOk, kFail };
+struct Status {
+  bool share = false;         // "Compartir datos anónimos"
+  bool versionCheck = false;  // "Avisarme de versiones nuevas"
+  Ping lastPing = Ping::kNever;
+  std::string latest;         // última versión publicada que se vio ("" = todavía no)
+};
+Status& status();
+const char* pingName(Ping p);  // "never" | "ok" | "fail"
+}  // namespace cloud

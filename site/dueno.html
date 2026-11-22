@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Panel del dueño · SiBlock</title>
+  <meta name="description" content="Resumen privado para el dueño de SiBlock.">
+  <meta name="robots" content="noindex">
+  <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="no-referrer">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="estilos.css">
+  <script type="module" src="js/inicio.js"></script>
+  <script type="module" src="js/dueno.js"></script>
+</head>
+<body>
+  <a class="saltar" href="#principal">Ir al contenido</a>
+
+  <header class="cabecera">
+    <a class="marca" href="index.html" aria-label="SiBlock, inicio">
+      <img src="favicon.svg" alt="" width="28" height="28">
+      <span>SiBlock</span>
+    </a>
+    <nav aria-label="Secciones">
+      <ul>
+        <li><a href="index.html#paso-instalar">Instalar</a></li>
+        <li><a href="guia-router.html">Guías</a></li>
+        <li><a href="obstaculos.html">Problemas comunes</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main id="principal">
+    <div class="cabeza-pagina">
+      <h1>Panel del dueño</h1>
+      <p class="entrada">Qué falla más y dónde se quedan las personas al instalar. Cada parte dice de qué tiempo es.</p>
+      <p id="dueno-estado" class="estado" role="status" aria-live="polite">Cargando…</p>
+      <p id="dueno-entrar" hidden><a class="boton" href="dueno.html">Entrar</a></p>
+    </div>
+
+    <div id="dueno-datos" hidden>
+      <section id="s-placas" class="bloque" aria-labelledby="titulo-d-placas">
+        <h2 id="titulo-d-placas">Placas</h2>
+        <p class="cifra"><strong id="d-placas">–</strong> <span>placas distintas en los últimos 400 días</span></p>
+      </section>
+      <section id="s-embudo" class="bloque" aria-labelledby="titulo-d-embudo">
+        <h2 id="titulo-d-embudo">Embudo de instalación</h2>
+        <p>Últimos 30 días.</p>
+        <div id="d-embudo" class="caja-grafica"></div>
+      </section>
+      <section id="s-temas" class="bloque" aria-labelledby="titulo-d-temas">
+        <h2 id="titulo-d-temas">De qué escriben</h2>
+        <p>Últimos 30 días.</p>
+        <div id="d-temas" class="caja-grafica"></div>
+      </section>
+      <section id="s-motivos" class="bloque" aria-labelledby="titulo-d-motivos">
+        <h2 id="titulo-d-motivos">Por qué no debió bloquearse</h2>
+        <p>Últimos 30 días.</p>
+        <div id="d-motivos" class="caja-grafica"></div>
+      </section>
+      <section id="s-bloqueos" class="bloque" aria-labelledby="titulo-d-bloqueos">
+        <h2 id="titulo-d-bloqueos">Sitios más reportados</h2>
+        <p>Desde el principio.</p>
+        <div id="d-bloqueos" class="caja-grafica"></div>
+      </section>
+      <section id="s-guias" class="bloque" aria-labelledby="titulo-d-guias">
+        <h2 id="titulo-d-guias">Guías que faltan</h2>
+        <p>Reportes con «Otro o no lo encontré», «No sé / otra» o que no pudieron cambiar el DNS, por marca. Desde el principio.</p>
+        <div id="d-guias" class="caja-grafica"></div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="pie">
+    <p><a href="index.html">← Volver al inicio</a></p>
+    <p>
+      SiBlock es software libre bajo la licencia GPLv3.
+      <a href="https://github.com/Sibajx/esp32-adblock" rel="noopener noreferrer">Ver el código</a>.
+    </p>
+    <p>¿Dudas? Escribe a <a href="mailto:contacto@s-dev.win">contacto@s-dev.win</a>.</p>
+    <p class="pie-enlaces"><a href="privacidad.html">Privacidad</a> · <a href="contacto.html">Contáctanos</a> · <a href="estadisticas.html">Estadísticas</a> · <a href="en/" hreflang="en" lang="en">English</a></p>
+    <p class="nota">Esta página funciona sin cookies. Si cuenta visitas, lo hace sin saber quién eres.</p>
+  </footer>
+</body>
+</html>

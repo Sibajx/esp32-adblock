@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Contáctanos · SiBlock</title>
+  <meta name="description" content="Escríbenos si SiBlock no se instala, no quita los anuncios o bloquea algo de más. Te contestamos por correo.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="no-referrer">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="estilos.css">
+  <script type="module" src="js/inicio.js"></script>
+  <script type="module" src="js/contacto.js"></script>
+</head>
+<body>
+  <a class="saltar" href="#principal">Ir al contenido</a>
+
+  <header class="cabecera">
+    <a class="marca" href="index.html" aria-label="SiBlock, inicio">
+      <img src="favicon.svg" alt="" width="28" height="28">
+      <span>SiBlock</span>
+    </a>
+    <nav aria-label="Secciones">
+      <ul>
+        <li><a href="index.html#paso-instalar">Instalar</a></li>
+        <li><a href="guia-router.html">Guías</a></li>
+        <li><a href="obstaculos.html">Problemas comunes</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main id="principal">
+    <div class="cabeza-pagina">
+      <a class="volver" href="index.html">← Volver al inicio</a>
+      <h1>Contáctanos</h1>
+      <p class="entrada">
+        Cuéntanos qué pasa y te contestamos a tu correo. Antes, quizá te sirva
+        <a href="obstaculos.html">Problemas comunes</a> o la <a href="guia-router.html">guía del router</a>.
+      </p>
+      <p class="nota">
+        Tu correo y tu mensaje solo los lee el dueño de SiBlock para contestarte.
+        <a href="privacidad.html#contacto">Qué hacemos con tu mensaje</a>
+      </p>
+      <p id="aviso-listo" class="aviso aviso-falta" hidden>
+        El formulario todavía no está listo. Mientras, escribe a <a href="mailto:contacto@s-dev.win">contacto@s-dev.win</a>.
+      </p>
+      <noscript><p class="aviso">Sin JavaScript, escribe a <a href="mailto:contacto@s-dev.win">contacto@s-dev.win</a>.</p></noscript>
+    </div>
+
+    <section id="escribir" class="bloque" aria-labelledby="titulo-escribir">
+      <h2 id="titulo-escribir">Tu mensaje</h2>
+      <form id="form-contacto" class="formulario" novalidate>
+        <div class="campo">
+          <label for="nombre">Tu nombre <span class="opcional">(si quieres)</span></label>
+          <input id="nombre" name="nombre" type="text" autocomplete="given-name" maxlength="80">
+        </div>
+        <div class="campo">
+          <label for="correo">Tu correo</label>
+          <input id="correo" name="correo" type="email" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" maxlength="254" required>
+          <span class="nota">Solo para contestarte.</span>
+        </div>
+        <div class="campo">
+          <label for="tema">¿De qué se trata?</label>
+          <select id="tema" name="tema" required></select>
+        </div>
+        <div class="campo">
+          <label for="mensaje">Cuéntanos qué pasa</label>
+          <textarea id="mensaje" name="mensaje" rows="6" minlength="10" maxlength="2000" required></textarea>
+          <span class="nota">Entre 10 y 2000 letras. Sin datos de tu WiFi ni contraseñas.</span>
+        </div>
+        <div id="diag" class="diag" hidden>
+          <p><strong>El diagnóstico de tu SiBlock (todavía no se ha mandado; solo se manda si marcas la casilla de abajo):</strong> son datos para el dueño de SiBlock; no hace falta entenderlos.</p>
+          <pre id="diag-texto"></pre>
+          <label class="casilla"><input id="adjuntar" name="adjuntar" type="checkbox" value="si"> Adjuntar el diagnóstico de mi SiBlock</label>
+        </div>
+        <div id="turnstile-contacto" class="caja-turnstile"></div>
+        <p><button id="mandar-contacto" class="boton" type="submit">Mandar mensaje</button></p>
+      </form>
+      <p id="contacto-estado" class="estado" role="status" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <p><a href="index.html">← Volver al inicio</a></p>
+    <p>
+      SiBlock es software libre bajo la licencia GPLv3.
+      <a href="https://github.com/Sibajx/esp32-adblock" rel="noopener noreferrer">Ver el código</a>.
+    </p>
+    <p>¿Prefieres tu correo? Escribe a <a href="mailto:contacto@s-dev.win">contacto@s-dev.win</a>.</p>
+    <p class="pie-enlaces"><a href="privacidad.html">Privacidad</a> · <a href="contacto.html">Contáctanos</a> · <a href="estadisticas.html">Estadísticas</a> · <a href="en/" hreflang="en" lang="en">English</a></p>
+    <p class="nota">Esta página funciona sin cookies. Si cuenta visitas, lo hace sin saber quién eres.</p>
+  </footer>
+</body>
+</html>

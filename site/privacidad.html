@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacidad · SiBlock</title>
+  <meta name="description" content="Qué cuenta la página de SiBlock, qué manda la placa (solo si tú lo activas) y qué se guarda de los reportes y mensajes.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="no-referrer">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="estilos.css">
+  <link rel="alternate" hreflang="es" href="https://siblock.s-dev.win/privacidad.html">
+  <link rel="alternate" hreflang="en" href="https://siblock.s-dev.win/en/privacy.html">
+  <script type="module" src="js/inicio.js"></script>
+</head>
+<body>
+  <a class="saltar" href="#principal">Ir al contenido</a>
+
+  <header class="cabecera">
+    <a class="marca" href="index.html" aria-label="SiBlock, inicio">
+      <img src="favicon.svg" alt="" width="28" height="28">
+      <span>SiBlock</span>
+    </a>
+    <nav aria-label="Secciones">
+      <ul>
+        <li><a href="index.html#paso-instalar">Instalar</a></li>
+        <li><a href="guia-router.html">Guías</a></li>
+        <li><a href="obstaculos.html">Problemas comunes</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main id="principal">
+    <div class="cabeza-pagina">
+      <a class="volver" href="index.html">← Volver al inicio</a>
+      <h1>Tu privacidad con SiBlock</h1>
+      <p class="entrada">
+        SiBlock está hecho para que nadie sepa qué haces en internet, ni siquiera nosotros. Aquí está
+        todo lo que se cuenta, lo que se guarda y lo que nunca se guarda.
+      </p>
+      <p class="aviso">
+        Lo corto: aparte de lo que tu SiBlock hace siempre para funcionar (lo explicamos abajo), no
+        manda nada a SiBlock ni a nadie más a menos que tú lo actives. Las dos opciones que mandan
+        algo vienen apagadas de fábrica.
+      </p>
+    </div>
+
+    <section id="siempre" class="bloque" aria-labelledby="titulo-siempre">
+      <h2 id="titulo-siempre">Lo que SiBlock hace siempre</h2>
+      <p>Para funcionar, tu SiBlock se conecta a internet para tres cosas, sin mandar nada tuyo a SiBlock:</p>
+      <ul class="tareas">
+        <li>
+          <strong>Buscar las páginas que no bloquea.</strong> Como hace tu módem, le pregunta a Cloudflare
+          (1.1.1.1) o a Quad9 (9.9.9.9) la dirección de cada página que no es un anuncio. Ellos ven qué
+          páginas se buscan desde tu casa, igual que las vería tu compañía de internet.
+        </li>
+        <li><strong>Bajar la lista de anuncios</strong>, una vez al día.</li>
+        <li><strong>Pedir la hora</strong> a pool.ntp.org o time.cloudflare.com, para revisar que las descargas sean seguras.</li>
+      </ul>
+      <p>
+        Si activas «Avisarme de versiones nuevas», también se conecta una vez al día a siblock.s-dev.win
+        para ver si hay una versión nueva, aunque «Compartir datos anónimos» esté apagado.
+      </p>
+      <p>
+        Si prendes las listas extra (estafas, anuncios en español), también las baja una vez al día de
+        GitHub y de adblockplus.org. No les manda nada tuyo; como cualquier página, ven la dirección de
+        internet de tu casa.
+      </p>
+    </section>
+
+    <section id="pagina" class="bloque" aria-labelledby="titulo-pagina">
+      <h2 id="titulo-pagina">Lo que cuenta esta página</h2>
+      <ul class="tareas">
+        <li>
+          <strong>Visitas.</strong> Usamos Cloudflare Web Analytics, sin cookies: cuenta cuántas
+          personas abren cada página y desde qué país, sin saber quién eres ni seguirte a otras páginas.
+        </li>
+        <li>
+          <strong>Pasos de la instalación.</strong> Cuando entras, conectas la placa, terminas de
+          instalar, das tu WiFi o abres tu panel, sumamos uno a un contador de ese día. No va ningún
+          número tuyo, nombre ni nada guardado en tu navegador: solo el nombre del paso.
+        </li>
+        <li>
+          Si tu navegador pide «no rastrear», no contamos nada de lo anterior.
+        </li>
+        <li>
+          La página no guarda nada en tu navegador y no te pide crear una cuenta.
+        </li>
+      </ul>
+    </section>
+
+    <section id="placa" class="bloque" aria-labelledby="titulo-placa">
+      <h2 id="titulo-placa">Lo que manda la placa (solo si tú lo activas)</h2>
+      <p>
+        En tu panel, en «Compartir con SiBlock», hay dos opciones. Las dos vienen apagadas de fábrica
+        y las puedes apagar cuando quieras. Al borrar la configuración se apagan solas.
+      </p>
+      <h3>Compartir datos anónimos</h3>
+      <p>
+        Si lo activas, tu SiBlock manda a siblock.s-dev.win una vez al día un número al azar de esta
+        instalación (no dice quién eres), la versión de SiBlock y cuántos anuncios quitó ese día. Y,
+        solo cuando tú lo mandes, la marca de tu módem, si pudiste cambiar el DNS y en qué menú, o el
+        sitio que no debió bloquearse. Nunca manda tu IP, la MAC, nombres de aparatos ni qué sitios
+        visitas. El servidor ve tu país y tu compañía de internet por la conexión, pero no guarda tu
+        IP. Con esta opción apagada, SiBlock no manda nada tuyo a siblock.s-dev.win (solo revisa si hay
+        versión nueva, si activas «Avisarme de versiones nuevas»).
+      </p>
+      <p>Del aviso de cada día guardamos:</p>
+      <ul class="tareas">
+        <li>una versión revuelta del número de instalación (no el número tal cual);</li>
+        <li>la versión de SiBlock;</li>
+        <li>el país (lo ve el servidor por la conexión);</li>
+        <li>cuántos anuncios quitó ese día;</li>
+        <li>el día (no la hora).</li>
+      </ul>
+      <p>
+        Lo de cada día se borra a los 400 días. Las <a href="estadisticas.html">estadísticas públicas</a>
+        solo lo muestran sumado por país y por versión.
+      </p>
+      <h3>Avisarme de versiones nuevas</h3>
+      <p>
+        Si lo activas, SiBlock revisa una vez al día si hay una versión nueva. Solo pide un archivo
+        público; no manda nada tuyo.
+      </p>
+    </section>
+
+    <section id="reportes" class="bloque" aria-labelledby="titulo-reportes">
+      <h2 id="titulo-reportes">Lo que se guarda de los reportes</h2>
+      <p>
+        Los reportes («qué módem tengo» y «esto no debió bloquearse») se mandan desde tu panel o desde
+        <a href="reporte.html">la página de reportes</a>. Son opciones para elegir; lo único que se
+        escribe es el nombre del sitio en «esto no debió bloquearse», y solo se acepta si es un nombre
+        de sitio.
+      </p>
+      <p>De «qué módem tengo» guardamos:</p>
+      <ul class="tareas">
+        <li>el país y la compañía de internet (los ve el servidor por la conexión);</li>
+        <li>la marca del módem, si pudiste cambiar el DNS y en qué menú;</li>
+        <li>el día (no la hora);</li>
+        <li>una versión revuelta del número de instalación, para contar un solo reporte por casa.</li>
+      </ul>
+      <p>De «esto no debió bloquearse» guardamos:</p>
+      <ul class="tareas">
+        <li>el nombre del sitio y por qué (una página, una app, un juego u otro);</li>
+        <li>el día (no la hora);</li>
+        <li>una versión revuelta del número de instalación, para contar un solo reporte por casa.</li>
+      </ul>
+      <p>
+        Estos reportes no se borran con el tiempo: son la guía que ayuda a otras personas con su módem.
+      </p>
+      <p>
+        <strong>Nunca</strong> guardamos tu IP, la MAC de tus aparatos, tu nombre ni tu ubicación.
+        Para frenar abusos, el servidor mira cuántos envíos llegan desde una misma conexión, pero no
+        guarda esa dirección.
+      </p>
+      <p>
+        Las estadísticas públicas solo muestran grupos grandes: un país aparece con 5 placas o más, y
+        una combinación de módem con 3 reportes iguales o más.
+        <a href="estadisticas.html">Ver las estadísticas</a>.
+      </p>
+    </section>
+
+    <section id="contacto" class="bloque" aria-labelledby="titulo-contacto">
+      <h2 id="titulo-contacto">Cuando nos escribes</h2>
+      <p>
+        Si usas <a href="contacto.html">Contáctanos</a>, tu correo, tu nombre (si lo pones) y tu
+        mensaje llegan solo al dueño de SiBlock para contestarte. No los publicamos ni los compartimos,
+        y se borran cuando ya no hacen falta. Te llega una respuesta automática que no repite nada de
+        lo que escribiste.
+      </p>
+      <p>
+        Si vienes desde tu panel, puedes adjuntar el diagnóstico de tu SiBlock (versión, memoria
+        libre, avisos y el último error al bajar la lista). Solo se manda si marcas la casilla.
+      </p>
+      <p>
+        De los mensajes solo contamos el tema (por ejemplo, «no puedo instalar») para saber qué falla más.
+      </p>
+      <p>
+        Para no mandar más de una respuesta automática al día a la misma dirección, guardamos una
+        versión revuelta de tu correo (no el correo tal cual) solo hasta el día siguiente.
+      </p>
+    </section>
+
+    <section id="nada" class="bloque" aria-labelledby="titulo-nada">
+      <h2 id="titulo-nada">Puedes no mandar nada</h2>
+      <p>
+        SiBlock funciona igual sin compartir nada: deja las dos opciones apagadas y no llenes los
+        reportes. Si tienes una duda sobre tus datos, escribe a
+        <a href="mailto:contacto@s-dev.win">contacto@s-dev.win</a>.
+      </p>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <p><a href="index.html">← Volver al inicio</a></p>
+    <p>
+      SiBlock es software libre bajo la licencia GPLv3.
+      <a href="https://github.com/Sibajx/esp32-adblock" rel="noopener noreferrer">Ver el código</a>.
+    </p>
+    <p>¿Dudas? Escribe a <a href="mailto:contacto@s-dev.win">contacto@s-dev.win</a>.</p>
+    <p class="pie-enlaces"><a href="privacidad.html">Privacidad</a> · <a href="contacto.html">Contáctanos</a> · <a href="estadisticas.html">Estadísticas</a> · <a href="en/privacy.html" hreflang="en" lang="en">English</a></p>
+    <p class="nota">Esta página funciona sin cookies. Si cuenta visitas, lo hace sin saber quién eres.</p>
+  </footer>
+</body>
+</html>

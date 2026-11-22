@@ -1,0 +1,26 @@
+.pio/
+.vscode/
+src/secrets.h
+test_host/test_core
+test_host/list_stats
+graphify-out/
+sim/build/
+sim/build-big/
+sim/esp32-sim
+sim/esp32-sim-big
+sim/sim-flash/
+sim/flash-big/
+test_host/test_siblock
+sim/build-fresh/
+sim/esp32-sim-fresh
+sim/sim.log
+site/node_modules/
+public/
+__pycache__/
+
+# secretos locales (wrangler dev lee cloud/.dev.vars)
+.dev.vars*
+.env*
+!.env.example
+*.pem
+*.key

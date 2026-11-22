@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SiBlock: fewer ads in your whole home</title>
+  <meta name="description" content="Install SiBlock from your browser: a small board that removes ads and trackers on every device in your home.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="no-referrer">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../estilos.css">
+  <link rel="alternate" hreflang="es" href="https://siblock.s-dev.win/">
+  <link rel="alternate" hreflang="en" href="https://siblock.s-dev.win/en/">
+  <script type="module" src="../js/inicio.js"></script>
+  <script type="module" src="https://unpkg.com/esp-web-tools@10.4.0/dist/web/install-button.js" integrity="sha384-9XfyvAabgkISlB/Xb3OpshGKpZx0TOt5Mmu78SeiNU3so/p4o2s9m66vy6Utdnom" crossorigin="anonymous"></script>
+  <script type="module" src="../js/instalar.js"></script>
+</head>
+<body>
+  <a class="saltar" href="#principal">Skip to content</a>
+
+  <header class="cabecera">
+    <a class="marca" href="#principal" aria-label="SiBlock, home">
+      <img src="../favicon.svg" alt="" width="28" height="28">
+      <span>SiBlock</span>
+    </a>
+    <nav aria-label="Sections">
+      <ul>
+        <li><a href="#compra">What I need</a></li>
+        <li><a href="#paso-instalar">Install</a></li>
+        <li><a href="#router">Router</a></li>
+        <li><a href="#luz">The light</a></li>
+        <li><a href="#traba">If something gets stuck</a></li>
+        <li><a href="../" hreflang="es" lang="es">Español</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main id="principal">
+    <section id="que-es" class="portada" aria-labelledby="titulo-que-es">
+      <h1 id="titulo-que-es">Fewer ads on every device in your home.</h1>
+      <p class="entrada">
+        SiBlock is a small board that joins your WiFi and keeps ads and trackers out. It works for
+        your phone, your TV and your computer at the same time, without installing anything on each
+        one. You set it up yourself from this page in a few minutes.
+      </p>
+      <p class="acciones">
+        <a class="boton" href="#compra">See what I need</a>
+        <a class="enlace-fuerte" href="#paso-instalar">I already have the board</a>
+      </p>
+
+      <div class="limites">
+        <div>
+          <h2>What it removes</h2>
+          <ul>
+            <li>Ads on web pages and in many apps.</li>
+            <li>Trackers that follow what you do.</li>
+            <li>With the extra list (off by default): scams and fake shops.</li>
+          </ul>
+        </div>
+        <div>
+          <h2>What it can’t remove</h2>
+          <p>
+            Ads on YouTube, Twitch, Instagram, Facebook and TikTok. They come from the same place as
+            the video or the photos, so removing them would also remove what you want to see.
+          </p>
+          <p><a href="../obstaculos.html#no-puede" hreflang="es">Why not (in Spanish)</a></p>
+        </div>
+      </div>
+    </section>
+
+    <ol class="camino">
+      <li class="paso">
+        <section id="compra" aria-labelledby="titulo-compra">
+          <h2 id="titulo-compra"><span class="num" aria-hidden="true">1</span> Get what you need</h2>
+          <p>You can find everything in electronics stores or online shops.</p>
+
+          <dl class="lista-compra">
+            <div>
+              <dt>A classic ESP32 board</dt>
+              <dd>
+                Look for “ESP32 WROOM-32” with 4 MB and a USB port. It’s often called “ESP32 DevKit”.
+                <span class="nota">These won’t work: ESP8266 boards (for example, the D1 mini), other
+                ESP32 models (S2, S3, C3, C6) or boards without a USB port.</span>
+                <figure class="dibujo-placa">
+                  <svg viewBox="0 0 220 300" role="img" aria-labelledby="placa-titulo placa-desc">
+                    <title id="placa-titulo">Drawing of an ESP32 DevKit board</title>
+                    <desc id="placa-desc">A long board with a row of pins on each side, a metal module at the top that says ESP32-WROOM-32, and at the bottom the USB port with a small button on each side: EN and BOOT.</desc>
+                    <rect x="40" y="10" width="140" height="270" rx="8" class="placa-pcb"/>
+                    <g class="placa-patas">
+                      <circle cx="52" cy="70" r="3.5"/><circle cx="52" cy="85" r="3.5"/><circle cx="52" cy="100" r="3.5"/><circle cx="52" cy="115" r="3.5"/><circle cx="52" cy="130" r="3.5"/><circle cx="52" cy="145" r="3.5"/><circle cx="52" cy="160" r="3.5"/><circle cx="52" cy="175" r="3.5"/><circle cx="52" cy="190" r="3.5"/><circle cx="52" cy="205" r="3.5"/><circle cx="52" cy="220" r="3.5"/>
+                      <circle cx="168" cy="70" r="3.5"/><circle cx="168" cy="85" r="3.5"/><circle cx="168" cy="100" r="3.5"/><circle cx="168" cy="115" r="3.5"/><circle cx="168" cy="130" r="3.5"/><circle cx="168" cy="145" r="3.5"/><circle cx="168" cy="160" r="3.5"/><circle cx="168" cy="175" r="3.5"/><circle cx="168" cy="190" r="3.5"/><circle cx="168" cy="205" r="3.5"/><circle cx="168" cy="220" r="3.5"/>
+                    </g>
+                    <rect x="68" y="20" width="84" height="110" rx="3" class="placa-modulo"/>
+                    <text x="110" y="70" class="placa-texto">ESP32-</text>
+                    <text x="110" y="86" class="placa-texto">WROOM-32</text>
+                    <rect x="92" y="252" width="36" height="28" rx="3" class="placa-usb"/>
+                    <text x="110" y="296" class="placa-etiqueta">USB</text>
+                    <rect x="62" y="252" width="18" height="16" rx="3" class="placa-boton"/>
+                    <text x="71" y="246" class="placa-etiqueta">EN</text>
+                    <rect x="140" y="252" width="18" height="16" rx="3" class="placa-boton"/>
+                    <text x="149" y="246" class="placa-etiqueta placa-boot">BOOT</text>
+                  </svg>
+                  <figcaption>
+                    This is what it looks like. The color and the number of pins change by brand. Look
+                    for the metal square that says “ESP32-WROOM-32”, the USB port and the two buttons
+                    next to it; one says BOOT (or IO0) and you’ll use it later.
+                  </figcaption>
+                </figure>
+              </dd>
+            </div>
+            <div>
+              <dt>A USB <strong>data</strong> cable</dt>
+              <dd>
+                Many cables only charge, and the computer can’t see the board. If it doesn’t show up,
+                try another cable first: it’s the most common problem.
+              </dd>
+            </div>
+            <div>
+              <dt>A 5 V charger</dt>
+              <dd>Any phone charger will do to keep it on all day.</dd>
+            </div>
+            <div>
+              <dt>2.4 GHz WiFi at home</dt>
+              <dd>
+                The board can’t join 5 GHz networks. Almost every modem has both; sometimes the 2.4 GHz
+                one shows up as another network with a similar name.
+              </dd>
+            </div>
+          </dl>
+
+          <details class="drivers">
+            <summary>If the computer doesn’t recognize the board</summary>
+            <p>
+              The board has a chip to talk over USB. It’s almost always <strong>CH340</strong> or
+              <strong>CP2102</strong>; you can read it on the small chip next to the connector.
+            </p>
+            <ul>
+              <li>
+                <strong>Windows:</strong> it often installs by itself. If not, download the program from
+                the chip maker:
+                <a href="https://www.wch.cn/downloads/CH341SER_ZIP.html" rel="noopener noreferrer">CH340 for Windows</a>
+                or <a href="https://www.silabs.com/developers/usb-to-uart-bridge-vcp-drivers" rel="noopener noreferrer">CP2102</a>
+                <span class="falta">not checked yet</span>.
+              </li>
+              <li>
+                <strong>Mac:</strong> if it doesn’t show up, install the maker’s one:
+                <a href="https://www.wch.cn/downloads/CH341SER_MAC_ZIP.html" rel="noopener noreferrer">CH340 for Mac</a>
+                or <a href="https://www.silabs.com/developers/usb-to-uart-bridge-vcp-drivers" rel="noopener noreferrer">CP2102</a>
+                <span class="falta">not checked yet</span>.
+              </li>
+              <li><strong>Linux and Chromebook:</strong> nothing to install.</li>
+            </ul>
+          </details>
+        </section>
+      </li>
+
+      <li class="paso">
+        <section id="paso-instalar" aria-labelledby="titulo-instalar">
+          <h2 id="titulo-instalar"><span class="num" aria-hidden="true">2</span> Install SiBlock</h2>
+          <p>Plug the board into the computer with the cable and press the button.</p>
+
+          <div id="instalar">
+            <esp-web-install-button manifest="../firmware/manifest.json">
+              <button slot="activate" class="boton boton-grande" type="button">Install SiBlock</button>
+              <p slot="unsupported" class="aviso">
+                To install, use Chrome or Edge on a computer. Firefox and Safari can’t do it yet.
+              </p>
+              <p slot="not-allowed" class="aviso">
+                This page has to be opened with an address that starts with https.
+              </p>
+            </esp-web-install-button>
+
+            <details class="ingles">
+              <summary>What to press in the installer window</summary>
+              <ol>
+                <li>Pick your board in the list and press <strong>Connect</strong>.</li>
+                <li>Press <strong>Install SiBlock</strong>. If it was already installed, the button says
+                  <strong>Update SiBlock</strong>.</li>
+                <li>The first time it asks about <strong>Erase device</strong>: tick it and press
+                  <strong>Next</strong>. When updating it almost never shows up; if it does, leave it
+                  unticked so your WiFi isn’t erased.</li>
+                <li>Confirm with <strong>Install</strong> and wait a few minutes without unplugging.</li>
+                <li>In <strong>Connect to Wi-Fi</strong> pick your network, type its password in
+                  <strong>Password</strong> and press <strong>Connect</strong>.</li>
+              </ol>
+              <p>Button names when updating: <span class="falta">not checked yet</span> with the board.</p>
+            </details>
+          </div>
+
+          <p id="sin-soporte" class="aviso" hidden>
+            To install, use Chrome or Edge on a computer. Firefox and Safari can’t do it yet.
+          </p>
+        </section>
+      </li>
+
+      <li class="paso">
+        <section id="despues" aria-labelledby="titulo-despues">
+          <h2 id="titulo-despues"><span class="num" aria-hidden="true">3</span> After installing</h2>
+          <ul class="tareas">
+            <li>
+              <strong>Your WiFi.</strong> The installer asks for it when it finishes. If you skipped it,
+              press “Install SiBlock” again: it lets you enter it without installing again.
+            </li>
+            <li>
+              <strong>Save the backup password.</strong> It’s the password of SiBlock’s own WiFi. You
+              need it if you ever change your WiFi.
+            </li>
+            <li>
+              <strong>Open your panel and create your password.</strong> It must be 12 to 64 characters
+              long. If it asks you to press the BOOT button, press the board’s BOOT button once and try
+              again. <span class="nota">The panel on the board is only in Spanish for now.</span>
+            </li>
+          </ul>
+
+          <div id="respaldo" class="respaldo">
+            <h3>Your backup password and your panel</h3>
+            <p>
+              Keep the board plugged in by USB and close the installer window. Then press the button and
+              pick your board in the list.
+            </p>
+            <p>
+              Once it gets your WiFi, SiBlock needs a couple of minutes to get ready. It won’t answer in
+              the meantime: wait with the page open and don’t unplug the board.
+            </p>
+            <button id="ver-respaldo" class="boton boton-secundario" type="button">Show my backup password</button>
+            <p id="respaldo-estado" class="estado" role="status" aria-live="polite"></p>
+            <div id="respaldo-datos" hidden>
+              <dl>
+                <dt>Network</dt>
+                <dd id="respaldo-red"></dd>
+                <dt>Password</dt>
+                <dd id="respaldo-clave"></dd>
+              </dl>
+              <p>Save it: you need it if you ever change your WiFi.</p>
+            </div>
+            <div id="respaldo-panel" hidden>
+              <p>Your SiBlock’s address is <strong id="respaldo-ip"></strong>. Write it down: you’ll use it in step 4.</p>
+              <p><a id="abrir-panel" class="boton" target="_blank" rel="noopener noreferrer">Open my panel</a></p>
+            </div>
+          </div>
+        </section>
+      </li>
+
+      <li class="paso">
+        <section id="router" aria-labelledby="titulo-router">
+          <h2 id="titulo-router"><span class="num" aria-hidden="true">4</span> Tell your router to use SiBlock</h2>
+          <p>
+            This way every device at home goes through SiBlock without touching them one by one. Before
+            changing anything, take a photo of how it was: if something goes wrong, you can put it back.
+          </p>
+          <ol class="pasos-router">
+            <li>
+              Open your router’s page. The address, user and password are usually on a label under the
+              device.
+            </li>
+            <li>
+              Find the list of connected devices and ask for SiBlock to always get the same address. It’s
+              usually called “reserve IP” or “static IP”.
+            </li>
+            <li>
+              Find the “DNS” part (sometimes inside “LAN” or “DHCP”). In the first DNS, type SiBlock’s
+              address (you see it in step 3 or in your panel). Leave the second DNS empty (if it makes you
+              fill it, use the same address): if you put another one, some devices use it and ads sneak in.
+            </li>
+            <li>
+              If you see IPv6 options, turn off DNS over IPv6. If not, some devices skip SiBlock.
+            </li>
+            <li>Save, then turn your devices’ WiFi off and on so they pick up the change.</li>
+          </ol>
+          <p class="nota">
+            Every router names it differently, and some internet companies don’t let you change the DNS.
+          </p>
+          <p class="nota">This guide is only in Spanish for now.</p>
+          <p class="acciones-paso">
+            <a class="boton" href="../guia-router.html" hreflang="es">See the guide for my modem</a>
+            <a href="../fortigate.html" hreflang="es">Do you have a FortiGate?</a>
+          </p>
+
+          <h3 id="ya-funciona">Is it working?</h3>
+          <p>
+            Open your panel from the device you want to check and look at the notice at the top; if
+            something is wrong, press «<span lang="es">Algo no funciona</span>» (“Something isn’t working”). This page can’t check it for you.
+          </p>
+          <p><a href="../obstaculos.html" hreflang="es">Common problems and how to fix them (in Spanish)</a></p>
+        </section>
+      </li>
+    </ol>
+
+    <section id="puede" class="bloque" aria-labelledby="titulo-puede">
+      <h2 id="titulo-puede">What it can do</h2>
+      <p>You control everything from your panel, on your phone or computer (the panel is in Spanish for now).</p>
+      <ul class="tareas">
+        <li><strong>Remove ads and trackers</strong> on every device at home at once.</li>
+        <li><strong>Name each device</strong> (“Living room TV”, “Ana’s phone”) and pause blocking on just one, for example if a page won’t load on the TV.</li>
+        <li><strong>Schedules for the kids:</strong> cut off social media, games or the whole internet on the devices and at the times you choose.</li>
+        <li><strong>Extra lists</strong> against scams and fake shops, and against some ads in Spanish (only a few for now). They're off by default; turn them on if you want.</li>
+        <li><strong>Backup:</strong> save your settings to a file and move them to another board if you ever change it.</li>
+      </ul>
+    </section>
+
+    <section id="luz" class="bloque" aria-labelledby="titulo-luz">
+      <h2 id="titulo-luz">What does the light mean?</h2>
+      <p>Many boards have a blue light next to the USB port. It tells you how SiBlock is doing without opening anything. Some boards don’t have that light; if yours doesn’t, use the panel to see how it’s doing (still to be checked which models have it).</p>
+      <div class="luz-caja">
+          <figure class="dibujo-luz">
+            <svg viewBox="0 0 260 180" role="img" aria-label="Bottom part of the board: the USB port in the middle, the EN button on the left, the BOOT button on the right and, next to the USB port, the blue SiBlock light.">
+              <rect x="20" y="-20" width="220" height="190" rx="10" class="placa-pcb"/>
+              <g class="placa-patas">
+                <circle cx="34" cy="20" r="3.5"/><circle cx="34" cy="40" r="3.5"/><circle cx="34" cy="60" r="3.5"/><circle cx="34" cy="80" r="3.5"/>
+                <circle cx="226" cy="20" r="3.5"/><circle cx="226" cy="40" r="3.5"/><circle cx="226" cy="60" r="3.5"/><circle cx="226" cy="80" r="3.5"/>
+              </g>
+              <rect x="110" y="132" width="40" height="38" rx="3" class="placa-usb"/>
+              <text x="130" y="124" class="placa-etiqueta">USB</text>
+              <rect x="58" y="138" width="22" height="18" rx="3" class="placa-boton"/>
+              <text x="69" y="130" class="placa-etiqueta">EN</text>
+              <rect x="180" y="138" width="22" height="18" rx="3" class="placa-boton"/>
+              <text x="191" y="130" class="placa-etiqueta placa-boot">BOOT</text>
+              <circle cx="160" cy="98" r="13" class="luz-halo"/>
+              <circle cx="160" cy="98" r="6" class="luz-led"/>
+              <path d="M146 92 L112 66" class="luz-guia"/>
+              <text x="92" y="58" class="placa-etiqueta luz-texto">blue light</text>
+            </svg>
+          </figure>
+        <ul class="luces">
+          <li>
+            <span class="luz-punto luz-fija" aria-hidden="true"></span>
+            <div><strong>Steady light</strong> All good: SiBlock is removing ads.</div>
+          </li>
+          <li>
+            <span class="luz-punto luz-lenta" aria-hidden="true"></span>
+            <div><strong>Slow blink</strong> It’s downloading the ad list. Wait a few minutes.</div>
+          </li>
+          <li>
+            <span class="luz-punto luz-rapida" aria-hidden="true"></span>
+            <div>
+              <strong>Fast blink</strong> Something is wrong: it can’t find your WiFi, it’s waiting for
+              you to set it up, or it can’t reach the internet. Open your panel. If it doesn’t open, look
+              on your phone for the network <strong class="sin-cortar">SiBlock-XXXX</strong> (the X’s change on each board),
+              join it with the backup password and follow the steps.
+            </div>
+          </li>
+        </ul>
+      </div>
+      <p class="nota">
+        If your board has the blue light and it’s off even though the board has power, unplug it and plug it back in. While you press the
+        BOOT button, the light does other things: that’s normal. Many boards also have a red light; that
+        one only means it has power.
+      </p>
+      <p>Forgot the password or changed your WiFi? See <a href="#traba">If something gets stuck</a>.</p>
+    </section>
+
+    <section id="traba" class="bloque" aria-labelledby="titulo-traba">
+      <h2 id="titulo-traba">If something gets stuck</h2>
+      <p>The <strong>BOOT</strong> button on the board (the one to the right of the USB in the drawing above) gets you out of trouble. Hold it down as long as the table says, then let go.</p>
+      <div class="tabla-scroll tabla-boton" role="region" aria-labelledby="titulo-traba" tabindex="0">
+      <table>
+        <thead><tr><th scope="col">How long you hold it</th><th scope="col">What happens</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">A quick press</th><td>For 30 minutes you can create the panel password.</td></tr>
+          <tr><th scope="row">3 to 8 seconds (let go when the blue light stays on)</th><td>SiBlock opens its own network <strong class="sin-cortar">SiBlock-XXXX</strong> so you can give it another WiFi.</td></tr>
+          <tr><th scope="row">10 seconds or more</th><td>Erases the settings: the WiFi, the panel password, device names, schedules, the charts, the extra lists and the sharing and Private Relay options (they go back to off). Your rules stay.</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <h3>I forgot the panel password</h3>
+      <p>Hold BOOT for 10 seconds or more. Then give it your WiFi again (with the installer on this page or through its own network) and create a new password.</p>
+      <h3>I changed my WiFi</h3>
+      <ol>
+        <li>Hold BOOT for 3 to 8 seconds. If you do nothing, SiBlock also opens its network on its own after 10 minutes without reaching your WiFi.</li>
+        <li>On your phone, join the network <strong class="sin-cortar">SiBlock-XXXX</strong> with the backup password.</li>
+        <li>A page opens: choose your new WiFi, type its password and tap “Conectar” (Connect).</li>
+      </ol>
+      <p>If you lost the backup password, plug the board in by USB and press “Install SiBlock” again: it lets you give it the new WiFi without installing again.</p>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <p>
+      SiBlock is free software under the GPLv3 license.
+      <a href="https://github.com/Sibajx/esp32-adblock" rel="noopener noreferrer">See the code</a>.
+    </p>
+    <p>Questions? Write to <a href="mailto:contacto@s-dev.win">contacto@s-dev.win</a>.</p>
+    <p class="pie-enlaces"><a href="privacy.html">Privacy</a> · <a href="../contacto.html" hreflang="es">Contact (in Spanish)</a> · <a href="../estadisticas.html" hreflang="es">Statistics (in Spanish)</a> · <a href="../" hreflang="es" lang="es">Español</a></p>
+    <p class="pie-apoyo"><a id="apoyo" hidden rel="noopener noreferrer">Buy me a coffee</a></p>
+    <p class="nota">This page works with no cookies. If it counts visits, it does so without knowing who you are.</p>
+  </footer>
+</body>
+</html>

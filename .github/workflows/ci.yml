@@ -1,0 +1,139 @@
+# SiBlock: pruebas, simulador y compilación en cada push y cada PR.
+# Solo lee el repo (no publica nada ni usa secretos).
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  host:
+    name: Pruebas en la PC
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: make -C test_host test
+        run: make -C test_host test
+      - name: Probar make_manifest.py
+        run: python3 .github/scripts/test_make_manifest.py
+      - name: Probar make_site_files.py
+        run: python3 .github/scripts/test_make_site_files.py
+
+  site:
+    name: Pruebas de la página
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: npm test (site/)
+        working-directory: site
+        run: npm test
+
+  worker:
+    name: Worker (cloud/)
+    # Solo pruebas y tipos: el Worker no se despliega desde CI (lo hace el autor a mano).
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: cloud
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: cloud/package-lock.json
+      - name: npm ci
+        run: npm ci
+      - name: npm test
+        run: npm test
+      - name: npm run tipos
+        run: npm run tipos
+
+  sim:
+    name: Simulador
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Instalar dnspython
+        run: sudo apt-get update && sudo apt-get install -y python3-dnspython
+      - name: Compilar el simulador
+        run: make -C sim
+      - name: Arrancar el simulador
+        run: (cd sim && SIM_FLASH=./sim-flash ./esp32-sim > sim.log 2>&1 &)
+      - name: Esperar al panel (la lista se baja de internet, máx. 120 s)
+        run: |
+          for i in $(seq 1 120); do
+            if curl -fs -o /dev/null http://127.0.0.1:8080/api/stats; then
+              echo "listo en ${i} s"; exit 0
+            fi
+            if ! pgrep -x esp32-sim > /dev/null; then
+              echo "el simulador se cerró"; exit 1
+            fi
+            sleep 1
+          done
+          echo "el simulador no contestó en 120 s"; exit 1
+      - name: python3 sim/test_sim.py
+        run: python3 sim/test_sim.py
+      - name: Apagar el simulador
+        if: always()
+        run: pkill -x esp32-sim || true
+      - name: Subir sim/sim.log
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sim-log
+          path: sim/sim.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  firmware:
+    name: Compilar el firmware
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+          restore-keys: pio-${{ runner.os }}-
+      - name: Instalar PlatformIO
+        run: pip install platformio==6.1.19
+      - name: pio run
+        run: |
+          set -o pipefail
+          pio run 2>&1 | tee pio.log
+      - name: Flash por debajo de 92 %
+        run: |
+          pct=$(grep -oP 'Flash:.*?\K[0-9]+(\.[0-9]+)?(?=%)' pio.log | tail -n1)
+          test -n "$pct" || { echo "no encontré la línea Flash: en la salida de pio"; exit 1; }
+          echo "Flash: ${pct} %"
+          awk -v p="$pct" 'BEGIN { exit !(p < 92.0) }' || { echo "Flash ${pct} % no queda por debajo de 92,0 %"; exit 1; }

@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SiBlock detrás de un FortiGate · SiBlock</title>
+  <meta name="description" content="Cómo configurar un FortiGate (FortiOS 7.x) para que reparta SiBlock como DNS a toda la red, sin saltarse el firewall.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="no-referrer">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="estilos.css">
+  <script type="module" src="js/inicio.js"></script>
+</head>
+<body>
+  <a class="saltar" href="#principal">Ir al contenido</a>
+
+  <header class="cabecera">
+    <a class="marca" href="index.html" aria-label="SiBlock, inicio">
+      <img src="favicon.svg" alt="" width="28" height="28">
+      <span>SiBlock</span>
+    </a>
+    <nav aria-label="Secciones">
+      <ul>
+        <li><a href="index.html#paso-instalar">Instalar</a></li>
+        <li><a href="guia-router.html">Guías</a></li>
+        <li><a href="obstaculos.html">Problemas comunes</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main id="principal">
+    <div class="cabeza-pagina">
+      <a class="volver" href="guia-router.html">← Volver a las guías</a>
+      <h1>SiBlock detrás de un FortiGate</h1>
+      <p class="aviso">Para quien administra un FortiGate (FortiOS 7.x).</p>
+      <p class="entrada">
+        No hace falta saltarse el FortiGate. Se configura para que reparta SiBlock como el DNS de la
+        red. Antes de empezar, guarda una copia de la configuración.
+      </p>
+    </div>
+
+    <section class="bloque" aria-labelledby="titulo-pasos">
+      <h2 id="titulo-pasos">Pasos</h2>
+      <ol class="pasos-fg">
+        <li id="paso-1">
+          <h3>Reserva la dirección de SiBlock</h3>
+          <p>Dashboard → Network → DHCP → clic derecho sobre SiBlock → <em>Create reservation</em>.</p>
+        </li>
+        <li id="paso-2">
+          <h3>Reparte SiBlock como único DNS</h3>
+          <p>
+            En la interfaz interna: DHCP Server → DNS server <em>Specify</em> → la dirección de SiBlock,
+            sin segundo DNS. Si hay otro, los aparatos lo usan a ratos y se saltan el bloqueo.
+          </p>
+          <pre><code>config system dhcp server
+    edit &lt;id&gt;
+        set dns-service specify
+        set dns-server1 &lt;IP-del-ESP32&gt;
+        unset dns-server2
+    next
+end</code></pre>
+          <p class="nota"><code>&lt;IP-del-ESP32&gt;</code> es la dirección de tu SiBlock; <code>&lt;id&gt;</code> es el número del servidor DHCP de esa interfaz.</p>
+        </li>
+        <li id="paso-3">
+          <h3>No toques el DNS propio del FortiGate</h3>
+          <p>
+            Network → DNS sigue con FortiGuard o un DNS público. Si lo apuntas a SiBlock y la placa se
+            apaga, el FortiGate pierde sus servicios.
+          </p>
+        </li>
+        <li id="paso-4">
+          <h3>Que nada intercepte el puerto 53</h3>
+          <p>
+            Sin VIP ni DNAT al puerto 53 y sin <em>DNS Service</em> en la interfaz interna. El perfil
+            <em>DNS Filter</em> de la política puede quedarse.
+          </p>
+        </li>
+        <li id="paso-5">
+          <h3>Deja salir a SiBlock</h3>
+          <p>
+            Si tus políticas son estrictas, permite desde SiBlock: DNS (UDP y TCP 53) a 1.1.1.1 y
+            9.9.9.9, HTTPS a GitHub (para bajar las listas) y la hora (NTP, UDP 123).
+          </p>
+        </li>
+        <li id="paso-6">
+          <h3>Opcional: que nadie se salte SiBlock</h3>
+          <p>
+            Permite DNS (puertos 53 y 853) hacia internet solo desde SiBlock y niégalo al resto de la
+            red. Ojo: puede afectar computadoras del trabajo o con VPN.
+          </p>
+        </li>
+        <li id="paso-7">
+          <h3>IPv6</h3>
+          <p>Apaga el DNS que anuncia la interfaz (RDNSS / DHCPv6).</p>
+        </li>
+        <li id="paso-8">
+          <h3>Prueba</h3>
+          <p>
+            Renueva el DHCP de un aparato y revisa que su DNS sea SiBlock. Luego
+            <code>nslookup doubleclick.net</code> debe contestar <code>0.0.0.0</code>, y el aparato debe
+            salir en tu panel.
+          </p>
+        </li>
+        <li id="deshacer">
+          <h3>Deshacer</h3>
+          <p>En el mismo servidor DHCP, regresa el DNS al de siempre:</p>
+          <pre><code>config system dhcp server
+    edit &lt;id&gt;
+        set dns-service default
+    next
+end</code></pre>
+        </li>
+      </ol>
+    </section>
+
+    <section class="bloque" aria-labelledby="titulo-otros">
+      <h2 id="titulo-otros">¿Otro firewall?</h2>
+      <p>
+        Sophos, SonicWall, WatchGuard, pfSense y otros tienen el mismo problema: contestan o desvían las
+        consultas de DNS. La idea es la misma, pero todavía no hay guía para cada uno. Mira
+        <a href="obstaculos.html#en-red">los problemas comunes en la red</a>.
+      </p>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <p><a href="index.html">← Volver al inicio</a></p>
+    <p>
+      SiBlock es software libre bajo la licencia GPLv3.
+      <a href="https://github.com/Sibajx/esp32-adblock" rel="noopener noreferrer">Ver el código</a>.
+    </p>
+    <p>¿Dudas? Escribe a <a href="mailto:contacto@s-dev.win">contacto@s-dev.win</a>.</p>
+    <p class="pie-enlaces"><a href="privacidad.html">Privacidad</a> · <a href="contacto.html">Contáctanos</a> · <a href="estadisticas.html">Estadísticas</a> · <a href="en/" hreflang="en" lang="en">English</a></p>
+    <p class="nota">Esta página funciona sin cookies. Si cuenta visitas, lo hace sin saber quién eres.</p>
+  </footer>
+</body>
+</html>

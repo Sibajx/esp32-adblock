@@ -1,0 +1,38 @@
+# Worker de SiBlock: reportes, avisos de placa, estadísticas y Contáctanos.
+# Secretos (nunca en este archivo): ID_PEPPER, TURNSTILE_SECRET.
+# Pasos para publicarlo: DEPLOY.md (los hace el autor a mano).
+name = "siblock-api"
+main = "src/index.ts"
+compatibility_date = "2026-11-01"
+routes = [{ pattern = "siblock.s-dev.win/api/*", zone_name = "s-dev.win" }]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "siblock"
+database_id = "0979a4b7-1710-4a59-8c53-30a4f0a0b923"
+migrations_dir = "migrations"
+
+[[send_email]]
+name = "CORREO"
+
+[[ratelimits]]
+name = "LIMITE"
+namespace_id = "1001"
+simple = { limit = 5, period = 60 }
+
+[[ratelimits]]
+name = "LIMITE_CONTACTO"
+namespace_id = "1002"
+simple = { limit = 2, period = 60 }
+
+[triggers]
+crons = ["17 3 * * *"]
+
+[vars]
+ORIGEN = "https://siblock.s-dev.win"
+HOST_PAGINA = "siblock.s-dev.win"
+CONTACTO_DESTINO = "contacto@s-dev.win"
+CONTACTO_REMITENTE = "contacto@s-dev.win"
+RESPUESTA_AUTOMATICA = "0"  # "1" pide el plan de pago de Workers (ver DEPLOY.md, paso 4)
+ACCESS_TEAM_DOMAIN = "https://orange-grass-f926.cloudflareaccess.com"
+ACCESS_AUD = "dd6dd31b55cdc81433cfaa0e76d90999d6f4cb89b30c861f02149f44da3d8cbf"

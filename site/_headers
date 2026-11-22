@@ -1,0 +1,16 @@
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://unpkg.com/esp-web-tools@10.4.0/dist/web/ https://static.cloudflareinsights.com https://challenges.cloudflare.com; connect-src 'self' https://unpkg.com/esp-web-tools@10.4.0/dist/web/ https://cloudflareinsights.com; frame-src https://challenges.cloudflare.com; img-src 'self' data:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'
+  Referrer-Policy: no-referrer
+  X-Content-Type-Options: nosniff
+  Permissions-Policy: interest-cohort=(), camera=(), microphone=(), geolocation=(), payment=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+/firmware/*
+  Cache-Control: no-cache
+
+/version.json
+  Cache-Control: public, max-age=300
+
+/dueno*
+  X-Robots-Tag: noindex
+  Cache-Control: no-store

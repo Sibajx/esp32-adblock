@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Problemas comunes · SiBlock</title>
+  <meta name="description" content="Lo que hace que un aparato se salte SiBlock, qué hace SiBlock con cada caso y lo que ningún bloqueador por DNS puede quitar.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="no-referrer">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="estilos.css">
+  <script type="module" src="js/inicio.js"></script>
+</head>
+<body>
+  <a class="saltar" href="#principal">Ir al contenido</a>
+
+  <header class="cabecera">
+    <a class="marca" href="index.html" aria-label="SiBlock, inicio">
+      <img src="favicon.svg" alt="" width="28" height="28">
+      <span>SiBlock</span>
+    </a>
+    <nav aria-label="Secciones">
+      <ul>
+        <li><a href="index.html#paso-instalar">Instalar</a></li>
+        <li><a href="guia-router.html">Guías</a></li>
+        <li><a href="obstaculos.html" aria-current="page">Problemas comunes</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main id="principal">
+    <div class="cabeza-pagina">
+      <a class="volver" href="guia-router.html">← Volver a las guías</a>
+      <h1>Por qué a veces se cuelan anuncios</h1>
+      <p class="entrada">
+        Algunas cosas hacen que un aparato no pase por SiBlock, o que SiBlock no pueda hacer su
+        trabajo. Aquí están las conocidas y qué hacer con cada una.
+      </p>
+      <p>
+        Lo más rápido: abre tu panel desde el aparato que falla y pulsa <strong>Algo no funciona</strong>.
+        Te dice qué encontró.
+      </p>
+      <ul class="leyenda" aria-label="Qué significa cada marca">
+        <li><span class="etiqueta etiqueta-solo">Lo arregla solo</span> SiBlock lo resuelve sin que hagas nada.</li>
+        <li><span class="etiqueta etiqueta-activar">Lo puedes activar</span> Es una opción en tu panel. Viene apagada.</li>
+        <li><span class="etiqueta etiqueta-detecta">Lo detecta</span> El botón “Algo no funciona” lo encuentra y te dice qué hacer.</li>
+        <li><span class="etiqueta">Solo con guía</span> SiBlock no puede verlo; aquí te explicamos qué hacer.</li>
+        <li><span class="etiqueta">Más adelante</span> Todavía no está listo.</li>
+      </ul>
+    </div>
+
+    <section id="en-red" class="bloque" aria-labelledby="titulo-en-red">
+      <h2 id="titulo-en-red">En la red</h2>
+      <p class="nota solo-celular">Desliza la tabla de lado para ver todo.</p>
+      <div class="tabla-scroll" role="region" aria-labelledby="titulo-en-red" tabindex="0">
+        <table>
+          <thead>
+            <tr><th scope="col">Qué tienes</th><th scope="col">Qué pasa</th><th scope="col">Qué hace SiBlock</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Un firewall que contesta el DNS: FortiGate, Sophos, SonicWall, WatchGuard, Palo Alto, Meraki, pfSense u OPNsense, MikroTik con reglas al puerto 53</th>
+              <td>El firewall contesta o desvía las preguntas, y nunca llegan a SiBlock.</td>
+              <td><span class="etiqueta">Solo con guía</span> Hay <a href="fortigate.html">guía para FortiGate</a>. Para los demás, todavía no.</td>
+            </tr>
+            <tr>
+              <th scope="row">WiFi en malla con DNS propio: eero, Google o Nest WiFi, Orbi, Deco, UniFi</th>
+              <td>Funciona, pero todo llega como si fuera un solo aparato: el router. No ves cada aparato, ni puedes pausar uno solo.</td>
+              <td><span class="etiqueta etiqueta-detecta">Lo detecta</span> Te explica cómo hacer que el router reparta SiBlock directo a cada aparato.</td>
+            </tr>
+            <tr>
+              <th scope="row">Una compañía de internet que contesta el DNS por su cuenta</th>
+              <td>Las preguntas que SiBlock manda a internet las contesta la compañía.</td>
+              <td><span class="etiqueta">Más adelante</span> Mandar esas preguntas cifradas, si le alcanza la memoria a la placa.</td>
+            </tr>
+            <tr>
+              <th scope="row">Dos routers: el módem de la compañía y uno tuyo</th>
+              <td>Es fácil cambiar el que no es.</td>
+              <td><span class="etiqueta">Solo con guía</span> Cambia el de adentro: el que da el WiFi a tus aparatos.</td>
+            </tr>
+            <tr>
+              <th scope="row">Red de invitados, o “aislar aparatos”</th>
+              <td>Los aparatos de esa red no pueden hablar con SiBlock.</td>
+              <td><span class="etiqueta">Solo con guía</span> La red de invitados se queda sin bloqueo, o conectas SiBlock a esa red.</td>
+            </tr>
+            <tr>
+              <th scope="row">Una red aparte para la tele o la casa inteligente</th>
+              <td>Esos aparatos no llegan a SiBlock.</td>
+              <td><span class="etiqueta">Solo con guía</span> En el router, deja pasar de esa red a SiBlock solo el puerto 53.</td>
+            </tr>
+            <tr>
+              <th scope="row">IPv6 con DNS que reparte el router</th>
+              <td>Los aparatos preguntan por IPv6 a otro DNS y se saltan SiBlock.</td>
+              <td><span class="etiqueta etiqueta-detecta">Lo detecta</span> Si un aparato no llega, te sugiere apagar el DNS por IPv6 en el router.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="en-aparatos" class="bloque" aria-labelledby="titulo-en-aparatos">
+      <h2 id="titulo-en-aparatos">En los aparatos</h2>
+      <p class="nota solo-celular">Desliza la tabla de lado para ver todo.</p>
+      <div class="tabla-scroll" role="region" aria-labelledby="titulo-en-aparatos" tabindex="0">
+        <table>
+          <thead>
+            <tr><th scope="col">Qué tienes</th><th scope="col">Qué pasa</th><th scope="col">Qué hace SiBlock</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Firefox con “DNS seguro” automático</th>
+              <td>Firefox se salta SiBlock.</td>
+              <td><span class="etiqueta etiqueta-solo">Lo arregla solo</span> SiBlock le avisa a Firefox que en tu casa no lo use.</td>
+            </tr>
+            <tr>
+              <th scope="row">iCloud Private Relay (Safari en iPhone, iPad o Mac)</th>
+              <td>Safari se salta SiBlock.</td>
+              <td>
+                <span class="etiqueta etiqueta-activar">Lo puedes activar</span> En tu panel hay una opción
+                para que Safari use SiBlock en tu casa. Viene apagada porque también le quita a Safari la
+                privacidad de Private Relay. Apple avisa en el aparato. Mientras esté apagada, el botón
+                “Algo no funciona” te dice qué aparatos se la saltan.
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">Firefox con “DNS seguro” puesto a mano</th>
+              <td>Firefox se salta SiBlock. (Si lo dejas en automático, no pasa.)</td>
+              <td><span class="etiqueta etiqueta-detecta">Lo detecta</span> “Algo no funciona” te
+                avisa que el navegador usa su propio DNS. Cómo apagarlo: Ajustes → Privacidad y
+                seguridad → “DNS sobre HTTPS” → elige <strong>Protección predeterminada</strong> o
+                <strong>Desactivado</strong>.
+                <span class="falta">Falta verificar</span> los nombres de los menús.</td>
+            </tr>
+            <tr>
+              <th scope="row">Chrome o Edge con “DNS seguro” y un proveedor elegido a mano</th>
+              <td>El navegador se salta SiBlock. (Si lo dejas en automático, no pasa.)</td>
+              <td><span class="etiqueta etiqueta-detecta">Lo detecta</span> Cómo apagarlo: en Chrome,
+                Configuración → Privacidad y seguridad → Seguridad → “Usar DNS seguro”; en Edge,
+                Configuración → Privacidad, búsqueda y servicios → Seguridad → “Usar DNS seguro”.
+                Apágalo, o déjalo con <strong>tu proveedor de servicios actual</strong>.
+                <span class="falta">Falta verificar</span> los nombres de los menús.</td>
+            </tr>
+            <tr>
+              <th scope="row">Android con “DNS privado”</th>
+              <td>El teléfono se salta SiBlock.</td>
+              <td><span class="etiqueta etiqueta-detecta">Lo detecta</span> Cómo apagarlo: Ajustes →
+                Red e Internet (o Más conexiones) → “DNS privado” → <strong>Desactivado</strong>.
+                El menú cambia según la marca: mira
+                <a href="guia-router.html#por-aparato">la guía por aparato</a>.
+                <span class="falta">Falta verificar</span> los nombres de los menús.</td>
+            </tr>
+            <tr>
+              <th scope="row">Windows 11 con DNS cifrado, o un perfil de DNS en el iPhone</th>
+              <td>El aparato se salta SiBlock.</td>
+              <td><span class="etiqueta">Solo con guía</span> Casi siempre usan una dirección fija y
+                no le preguntan nada a SiBlock, así que “Algo no funciona” solo puede decirte que el
+                aparato no usa SiBlock. En Windows: Configuración → Red e Internet → tu red → deja la
+                asignación del DNS en <strong>Automático</strong>. En el iPhone: Ajustes → General →
+                VPN y administración de dispositivos, y borra los perfiles de DNS que no reconozcas.
+                <span class="falta">Falta verificar</span> los nombres de los menús.</td>
+            </tr>
+            <tr>
+              <th scope="row">Antivirus con “DNS seguro” o protección web (Avast, Kaspersky, ESET y otros)</th>
+              <td>El antivirus pregunta por su cuenta y se salta SiBlock.</td>
+              <td><span class="etiqueta">Solo con guía</span> SiBlock todavía no lo reconoce. Abre tu antivirus, busca “DNS seguro” o “protección web” y apágalo.</td>
+            </tr>
+            <tr>
+              <th scope="row">Aparatos con DNS fijo de fábrica: Chromecast, Google TV, Nest, algunas teles Samsung o LG, Roku</th>
+              <td>No hacen caso a lo que dice el router.</td>
+              <td><span class="etiqueta">Más adelante</span> Solo se arregla en el router, con el modo estricto (abajo).</td>
+            </tr>
+            <tr>
+              <th scope="row">Una VPN en el aparato (del trabajo, NordVPN y parecidas)</th>
+              <td>Usa el DNS de la VPN.</td>
+              <td><span class="etiqueta">Solo con guía</span> Es normal y está bien así. No fuerces las computadoras del trabajo.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="modo-estricto">Más adelante: modo estricto</h3>
+      <p>
+        Que el router solo deje salir preguntas de DNS desde SiBlock y se las niegue al resto. Es lo único
+        que obliga a los aparatos con DNS fijo. Tocará el firewall del router, así que llegará aparte,
+        con su propio aviso y su forma de deshacerlo. Puede afectar computadoras del trabajo o con VPN.
+      </p>
+    </section>
+
+    <section id="no-puede" class="bloque" aria-labelledby="titulo-no-puede">
+      <h2 id="titulo-no-puede">Lo que un DNS no puede bloquear</h2>
+      <p>
+        Los anuncios de <strong>YouTube, Twitch, Instagram, Facebook y TikTok</strong> no se pueden
+        quitar con SiBlock ni con ningún bloqueador que funcione como él. Vienen del mismo lugar que el
+        video o las fotos: bloquearlos rompería la app.
+      </p>
+      <p>
+        Lo mismo pasa con los anuncios que una página pone desde su propio sitio. SiBlock quita los que
+        vienen de empresas de anuncios y rastreo, que son la mayoría.
+      </p>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <p><a href="index.html">← Volver al inicio</a></p>
+    <p>
+      SiBlock es software libre bajo la licencia GPLv3.
+      <a href="https://github.com/Sibajx/esp32-adblock" rel="noopener noreferrer">Ver el código</a>.
+    </p>
+    <p>¿Encontraste otro problema? Escribe a <a href="mailto:contacto@s-dev.win">contacto@s-dev.win</a>.</p>
+    <p class="pie-enlaces"><a href="privacidad.html">Privacidad</a> · <a href="contacto.html">Contáctanos</a> · <a href="estadisticas.html">Estadísticas</a> · <a href="en/" hreflang="en" lang="en">English</a></p>
+    <p class="nota">Esta página funciona sin cookies. Si cuenta visitas, lo hace sin saber quién eres.</p>
+  </footer>
+</body>
+</html>

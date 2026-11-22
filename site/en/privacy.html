@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy · SiBlock</title>
+  <meta name="description" content="What the SiBlock page counts, what the board sends (only if you turn it on) and what is kept from reports and messages.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="no-referrer">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../estilos.css">
+  <link rel="alternate" hreflang="es" href="https://siblock.s-dev.win/privacidad.html">
+  <link rel="alternate" hreflang="en" href="https://siblock.s-dev.win/en/privacy.html">
+  <script type="module" src="../js/inicio.js"></script>
+</head>
+<body>
+  <a class="saltar" href="#principal">Skip to content</a>
+
+  <header class="cabecera">
+    <a class="marca" href="index.html" aria-label="SiBlock, home">
+      <img src="../favicon.svg" alt="" width="28" height="28">
+      <span>SiBlock</span>
+    </a>
+    <nav aria-label="Sections">
+      <ul>
+        <li><a href="index.html#paso-instalar">Install</a></li>
+        <li><a href="../privacidad.html" hreflang="es" lang="es">Español</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main id="principal">
+    <div class="cabeza-pagina">
+      <a class="volver" href="index.html">← Back to home</a>
+      <h1>Your privacy with SiBlock</h1>
+      <p class="entrada">
+        SiBlock is made so nobody knows what you do on the internet, not even us. Here is everything
+        that gets counted, what gets kept and what is never kept.
+      </p>
+      <p class="aviso">
+        In short: apart from what your SiBlock always does to work (explained below), it sends nothing
+        to SiBlock or anyone else unless you turn it on. The two options that send something are off
+        by default.
+      </p>
+      <p class="nota">
+        The panel on the board is only in Spanish for now, so option names are shown in Spanish with
+        their meaning next to them.
+      </p>
+    </div>
+
+    <section id="siempre" class="bloque" aria-labelledby="titulo-siempre">
+      <h2 id="titulo-siempre">What SiBlock always does</h2>
+      <p>To work, your SiBlock connects to the internet for three things, without sending anything of yours to SiBlock:</p>
+      <ul class="tareas">
+        <li>
+          <strong>Look up the pages it doesn’t block.</strong> Just like your modem does, it asks Cloudflare
+          (1.1.1.1) or Quad9 (9.9.9.9) for the address of every page that isn’t an ad. They see which
+          pages are looked up from your home, just as your internet company would.
+        </li>
+        <li><strong>Download the ad list</strong>, once a day.</li>
+        <li><strong>Ask for the time</strong> from pool.ntp.org or time.cloudflare.com, to check that downloads are safe.</li>
+      </ul>
+      <p>
+        If you turn on «<span lang="es">Avisarme de versiones nuevas</span>» (“Tell me about new
+        versions”), it also connects once a day to siblock.s-dev.win to see if there is a new version,
+        even when «<span lang="es">Compartir datos anónimos</span>» (“Share anonymous data”) is off.
+      </p>
+      <p>
+        If you turn on the extra lists (scams, ads in Spanish), it also downloads them once a day from
+        GitHub and adblockplus.org. It sends them nothing of yours; like any website, they see your
+        home’s internet address.
+      </p>
+    </section>
+
+    <section id="pagina" class="bloque" aria-labelledby="titulo-pagina">
+      <h2 id="titulo-pagina">What this page counts</h2>
+      <ul class="tareas">
+        <li>
+          <strong>Visits.</strong> We use Cloudflare Web Analytics, with no cookies: it counts how many
+          people open each page and from which country, without knowing who you are or following you to
+          other pages.
+        </li>
+        <li>
+          <strong>Install steps.</strong> When you arrive, plug in the board, finish installing, enter
+          your WiFi or open your panel, we add one to a counter for that day. No number of yours, no name
+          and nothing stored in your browser goes with it: only the name of the step.
+        </li>
+        <li>
+          If your browser asks “do not track”, we count none of the above.
+        </li>
+        <li>
+          The page stores nothing in your browser and doesn’t ask you to create an account.
+        </li>
+      </ul>
+    </section>
+
+    <section id="placa" class="bloque" aria-labelledby="titulo-placa">
+      <h2 id="titulo-placa">What the board sends (only if you turn it on)</h2>
+      <p>
+        In your panel, under «<span lang="es">Compartir con SiBlock</span>» (“Share with SiBlock”),
+        there are two options. Both are off by default and you can turn them off whenever you want.
+        When you erase the settings, they turn off by themselves.
+      </p>
+      <h3>«<span lang="es">Compartir datos anónimos</span>» (Share anonymous data)</h3>
+      <p>
+        If you turn it on, your SiBlock sends to siblock.s-dev.win once a day a random number for this
+        install (it doesn’t say who you are), the SiBlock version and how many ads it removed that day.
+        And, only when you send it, your modem brand, whether you could change the DNS and in which menu,
+        or the site that shouldn’t have been blocked. It never sends your IP, the MAC, device names or
+        which sites you visit. The server sees your country and your internet company from the
+        connection, but doesn’t keep your IP. With this option off, SiBlock sends nothing to
+        siblock.s-dev.win.
+      </p>
+      <p>From each day’s check-in we keep:</p>
+      <ul class="tareas">
+        <li>a scrambled version of the install number (not the number itself);</li>
+        <li>the SiBlock version;</li>
+        <li>the country (the server sees it from the connection);</li>
+        <li>how many ads it removed that day;</li>
+        <li>the day (not the time).</li>
+      </ul>
+      <p>
+        Each day’s data is deleted after 400 days. The
+        <a href="../estadisticas.html" hreflang="es">public statistics (in Spanish)</a> only show it added
+        up by country and by version.
+      </p>
+      <h3>«<span lang="es">Avisarme de versiones nuevas</span>» (Tell me about new versions)</h3>
+      <p>
+        If you turn it on, SiBlock checks once a day whether there is a new version. It only asks for a
+        public file; it sends nothing of yours.
+      </p>
+    </section>
+
+    <section id="reportes" class="bloque" aria-labelledby="titulo-reportes">
+      <h2 id="titulo-reportes">What is kept from reports</h2>
+      <p>
+        Reports (“which modem I have” and “this shouldn’t have been blocked”) are sent from your panel or
+        from <a href="../reporte.html" hreflang="es">the reports page (in Spanish)</a>. They are options
+        to pick; the only thing you type is the site name in “this shouldn’t have been blocked”, and it’s
+        only accepted if it is a site name.
+      </p>
+      <p>From “which modem I have” we keep:</p>
+      <ul class="tareas">
+        <li>the country and the internet company (the server sees them from the connection);</li>
+        <li>the modem brand, whether you could change the DNS and in which menu;</li>
+        <li>the day (not the time);</li>
+        <li>a scrambled version of the install number, to count only one report per home.</li>
+      </ul>
+      <p>From “this shouldn’t have been blocked” we keep:</p>
+      <ul class="tareas">
+        <li>the site name and why (a page, an app, a game or other);</li>
+        <li>the day (not the time);</li>
+        <li>a scrambled version of the install number, to count only one report per home.</li>
+      </ul>
+      <p>
+        These reports are not deleted over time: they are the guide that helps other people with their
+        modem.
+      </p>
+      <p>
+        We <strong>never</strong> keep your IP, the MAC of your devices, your name or your location. To
+        stop abuse, the server looks at how many reports come from the same connection, but doesn’t keep
+        that address.
+      </p>
+      <p>
+        The public statistics only show large groups: a country shows up with 5 boards or more, and a
+        modem combination with 3 or more matching reports.
+      </p>
+    </section>
+
+    <section id="contacto" class="bloque" aria-labelledby="titulo-contacto">
+      <h2 id="titulo-contacto">When you write to us</h2>
+      <p>
+        If you use the <a href="../contacto.html" hreflang="es">contact page (in Spanish)</a>, your email,
+        your name (if you give it) and your message reach only SiBlock’s owner, to answer you. We don’t
+        publish or share them, and they are deleted when no longer needed. You get an automatic reply
+        that doesn’t repeat anything you wrote.
+      </p>
+      <p>
+        If you come from your panel, you can attach your SiBlock’s diagnosis (version, free memory,
+        warnings and the last error when downloading the list). It’s only sent if you tick the box.
+      </p>
+      <p>
+        From messages we only count the topic (for example, “I can’t install”) to know what fails most.
+      </p>
+      <p>
+        So we don’t send more than one automatic reply a day to the same address, we keep a scrambled
+        version of your email (not the email itself) only until the next day.
+      </p>
+    </section>
+
+    <section id="nada" class="bloque" aria-labelledby="titulo-nada">
+      <h2 id="titulo-nada">You can send nothing</h2>
+      <p>
+        SiBlock works just the same without sharing anything: leave both options off and don’t fill in
+        the reports. If you have a question about your data, write to
+        <a href="mailto:contacto@s-dev.win">contacto@s-dev.win</a>.
+      </p>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <p><a href="index.html">← Back to home</a></p>
+    <p>
+      SiBlock is free software under the GPLv3 license.
+      <a href="https://github.com/Sibajx/esp32-adblock" rel="noopener noreferrer">See the code</a>.
+    </p>
+    <p>Questions? Write to <a href="mailto:contacto@s-dev.win">contacto@s-dev.win</a>.</p>
+    <p class="pie-enlaces"><a href="privacy.html">Privacy</a> · <a href="../contacto.html" hreflang="es">Contact (in Spanish)</a> · <a href="../estadisticas.html" hreflang="es">Statistics (in Spanish)</a> · <a href="../privacidad.html" hreflang="es" lang="es">Español</a></p>
+    <p class="nota">This page works with no cookies. If it counts visits, it does so without knowing who you are.</p>
+  </footer>
+</body>
+</html>

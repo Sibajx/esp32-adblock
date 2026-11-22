@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Estadísticas · SiBlock</title>
+  <meta name="description" content="Cuántas placas SiBlock hay, en qué países, cuántos anuncios quitan entre todas y qué módems funcionan. Sin datos de nadie.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="no-referrer">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="estilos.css">
+  <script type="module" src="js/inicio.js"></script>
+  <script type="module" src="js/estadisticas.js"></script>
+</head>
+<body>
+  <a class="saltar" href="#principal">Ir al contenido</a>
+
+  <header class="cabecera">
+    <a class="marca" href="index.html" aria-label="SiBlock, inicio">
+      <img src="favicon.svg" alt="" width="28" height="28">
+      <span>SiBlock</span>
+    </a>
+    <nav aria-label="Secciones">
+      <ul>
+        <li><a href="index.html#paso-instalar">Instalar</a></li>
+        <li><a href="guia-router.html">Guías</a></li>
+        <li><a href="obstaculos.html">Problemas comunes</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main id="principal">
+    <div class="cabeza-pagina">
+      <a class="volver" href="index.html">← Volver al inicio</a>
+      <h1>SiBlock en números</h1>
+      <p class="entrada">
+        Lo que comparten las placas que tienen activado «Compartir datos anónimos». Son números de
+        todos juntos: aquí no hay nada de una casa en particular.
+      </p>
+      <p class="nota">Un país aparece cuando tiene 5 placas o más. <a href="privacidad.html#reportes">Qué guardamos</a></p>
+      <p id="est-estado" class="estado" role="status" aria-live="polite">Cargando…</p>
+      <noscript><p class="aviso">Para ver las estadísticas hace falta tener JavaScript activado.</p></noscript>
+    </div>
+
+    <section id="placas" class="bloque" aria-labelledby="titulo-placas">
+      <h2 id="titulo-placas">Placas activas</h2>
+      <p class="cifra"><strong id="placas7d">–</strong> <span>placas avisaron en los últimos 7 días</span></p>
+    </section>
+
+    <section id="versiones" class="bloque" aria-labelledby="titulo-versiones">
+      <h2 id="titulo-versiones">Versiones</h2>
+      <div id="g-versiones" class="caja-grafica"></div>
+    </section>
+
+    <section id="paises" class="bloque" aria-labelledby="titulo-paises">
+      <h2 id="titulo-paises">Países</h2>
+      <div id="g-paises" class="caja-grafica"></div>
+    </section>
+
+    <section id="semanas" class="bloque" aria-labelledby="titulo-semanas">
+      <h2 id="titulo-semanas">Anuncios quitados entre todos</h2>
+      <p>Por semana, de lunes a domingo, las últimas 12 semanas.</p>
+      <div id="g-semanas" class="caja-grafica"></div>
+    </section>
+
+    <section id="modems" class="bloque" aria-labelledby="titulo-modems">
+      <h2 id="titulo-modems">Qué módem da cada compañía y dónde se cambia el DNS</h2>
+      <p>
+        Sale una fila cuando 3 personas o más dicen lo mismo. ¿Tu módem no está?
+        <a href="reporte.html">Cuéntanos cuál es</a>.
+      </p>
+      <div id="t-modems" class="tabla-scroll" tabindex="0" role="region" aria-labelledby="titulo-modems"></div>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <p><a href="index.html">← Volver al inicio</a></p>
+    <p>
+      SiBlock es software libre bajo la licencia GPLv3.
+      <a href="https://github.com/Sibajx/esp32-adblock" rel="noopener noreferrer">Ver el código</a>.
+    </p>
+    <p>¿Dudas? Escribe a <a href="mailto:contacto@s-dev.win">contacto@s-dev.win</a>.</p>
+    <p class="pie-enlaces"><a href="privacidad.html">Privacidad</a> · <a href="contacto.html">Contáctanos</a> · <a href="estadisticas.html">Estadísticas</a> · <a href="en/" hreflang="en" lang="en">English</a></p>
+    <p class="nota">Esta página funciona sin cookies. Si cuenta visitas, lo hace sin saber quién eres.</p>
+  </footer>
+</body>
+</html>

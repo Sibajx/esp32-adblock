@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reportar mi módem o un bloqueo · SiBlock</title>
+  <meta name="description" content="Cuéntale a SiBlock qué módem tienes y si pudiste cambiar el DNS, o qué sitio no debió bloquearse. Solo opciones para elegir.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="no-referrer">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="estilos.css">
+  <script type="module" src="js/inicio.js"></script>
+  <script type="module" src="js/reporte.js"></script>
+</head>
+<body>
+  <a class="saltar" href="#principal">Ir al contenido</a>
+
+  <header class="cabecera">
+    <a class="marca" href="index.html" aria-label="SiBlock, inicio">
+      <img src="favicon.svg" alt="" width="28" height="28">
+      <span>SiBlock</span>
+    </a>
+    <nav aria-label="Secciones">
+      <ul>
+        <li><a href="index.html#paso-instalar">Instalar</a></li>
+        <li><a href="guia-router.html">Guías</a></li>
+        <li><a href="obstaculos.html">Problemas comunes</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main id="principal">
+    <div class="cabeza-pagina">
+      <a class="volver" href="guia-router.html">← Volver a las guías</a>
+      <h1>Ayuda a otros con tu módem</h1>
+      <p class="entrada">
+        Con lo que cuentes aquí armamos la guía de cada módem y arreglamos lo que se bloquea de más.
+        Casi todo son opciones para elegir; solo escribes el nombre de un sitio si algo se bloqueó de
+        más. Nada sobre ti.
+      </p>
+      <div class="aviso aviso-privado">
+        <p><strong>Qué se manda:</strong> lo que elijas abajo. El servidor ve tu país y tu compañía de internet por la conexión.</p>
+        <p><strong>Qué no se manda:</strong> tu IP, la MAC de tus aparatos, tu nombre ni tu ubicación.</p>
+        <p>Si no quieres, no mandes nada: SiBlock funciona igual. <a href="privacidad.html#reportes">Qué guardamos</a></p>
+      </div>
+      <p id="desde-panel" class="nota" hidden>Vienes desde tu panel: tu reporte cuenta como el de tu SiBlock.</p>
+      <p id="proveedor-visto" hidden>Tu internet parece ser de: <strong id="proveedor-nombre"></strong></p>
+      <p id="aviso-listo" class="aviso aviso-falta" hidden>El formulario todavía no está listo. Prueba más tarde.</p>
+      <noscript><p class="aviso">Para mandar un reporte hace falta tener JavaScript activado.</p></noscript>
+    </div>
+
+    <section id="modem" class="bloque" aria-labelledby="titulo-modem">
+      <h2 id="titulo-modem">¿Qué módem tienes?</h2>
+      <form id="form-modem" class="formulario" novalidate>
+        <div class="campo">
+          <label for="fabricante">Marca del módem</label>
+          <select id="fabricante" name="fabricante" required></select>
+        </div>
+        <fieldset class="campo opciones">
+          <legend>¿Pudiste cambiar el DNS?</legend>
+          <label><input type="radio" name="dnsOk" value="si" required> Sí</label>
+          <label><input type="radio" name="dnsOk" value="no"> No</label>
+        </fieldset>
+        <div class="campo">
+          <label for="menu">¿En qué menú estaba?</label>
+          <select id="menu" name="menu" required></select>
+        </div>
+        <div id="turnstile-modem" class="caja-turnstile"></div>
+        <p><button id="mandar-modem" class="boton" type="submit">Mandar</button></p>
+        <p id="estado-modem" class="estado" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <section id="bloqueo" class="bloque" aria-labelledby="titulo-bloqueo">
+      <h2 id="titulo-bloqueo">Esto no debió bloquearse</h2>
+      <p>
+        Escribe solo el nombre del sitio, como <strong>ejemplo.com</strong>. Lo ves en tu panel, en la
+        lista de bloqueados.
+      </p>
+      <form id="form-bloqueo" class="formulario" novalidate>
+        <div class="campo">
+          <label for="dominio">Sitio bloqueado</label>
+          <input id="dominio" name="dominio" type="text" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="253" placeholder="ejemplo.com" required>
+        </div>
+        <div class="campo">
+          <label for="motivo">¿Qué pasó?</label>
+          <select id="motivo" name="motivo" required></select>
+        </div>
+        <div id="turnstile-bloqueo" class="caja-turnstile"></div>
+        <p><button id="mandar-bloqueo" class="boton" type="submit">Mandar</button></p>
+        <p id="estado-bloqueo" class="estado" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <p><a href="index.html">← Volver al inicio</a></p>
+    <p>
+      SiBlock es software libre bajo la licencia GPLv3.
+      <a href="https://github.com/Sibajx/esp32-adblock" rel="noopener noreferrer">Ver el código</a>.
+    </p>
+    <p>¿Dudas? Escribe a <a href="mailto:contacto@s-dev.win">contacto@s-dev.win</a>.</p>
+    <p class="pie-enlaces"><a href="privacidad.html">Privacidad</a> · <a href="contacto.html">Contáctanos</a> · <a href="estadisticas.html">Estadísticas</a> · <a href="en/" hreflang="en" lang="en">English</a></p>
+    <p class="nota">Esta página funciona sin cookies. Si cuenta visitas, lo hace sin saber quién eres.</p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SiBlock: menos anuncios en toda tu casa</title>
+  <meta name="description" content="Instala SiBlock desde el navegador: una plaquita que quita anuncios y rastreadores en todos los aparatos de tu casa.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="no-referrer">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="estilos.css">
+  <link rel="alternate" hreflang="es" href="https://siblock.s-dev.win/">
+  <link rel="alternate" hreflang="en" href="https://siblock.s-dev.win/en/">
+  <script type="module" src="js/inicio.js"></script>
+  <script type="module" src="https://unpkg.com/esp-web-tools@10.4.0/dist/web/install-button.js" integrity="sha384-9XfyvAabgkISlB/Xb3OpshGKpZx0TOt5Mmu78SeiNU3so/p4o2s9m66vy6Utdnom" crossorigin="anonymous"></script>
+  <script type="module" src="js/instalar.js"></script>
+</head>
+<body>
+  <a class="saltar" href="#principal">Ir al contenido</a>
+
+  <header class="cabecera">
+    <a class="marca" href="#principal" aria-label="SiBlock, inicio">
+      <img src="favicon.svg" alt="" width="28" height="28">
+      <span>SiBlock</span>
+    </a>
+    <nav aria-label="Secciones">
+      <ul>
+        <li><a href="#compra">Qué necesito</a></li>
+        <li><a href="#paso-instalar">Instalar</a></li>
+        <li><a href="#router">Router</a></li>
+        <li><a href="#luz">La luz</a></li>
+        <li><a href="#traba">Si algo se traba</a></li>
+        <li><a href="guia-router.html">Guías</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main id="principal">
+    <section id="que-es" class="portada" aria-labelledby="titulo-que-es">
+      <h1 id="titulo-que-es">Menos anuncios en todos los aparatos de tu casa.</h1>
+      <p class="entrada">
+        SiBlock es una plaquita que se conecta a tu WiFi y no deja pasar anuncios ni rastreadores.
+        Sirve para el teléfono, la tele y la computadora a la vez, sin instalar nada en cada uno.
+        La cargas tú desde esta página, en unos minutos.
+      </p>
+      <p class="acciones">
+        <a class="boton" href="#compra">Ver qué necesito</a>
+        <a class="enlace-fuerte" href="#paso-instalar">Ya tengo la placa</a>
+      </p>
+
+      <div class="limites">
+        <div>
+          <h2>Qué quita</h2>
+          <ul>
+            <li>Anuncios en páginas web y en muchas apps.</li>
+            <li>Rastreadores que siguen lo que haces.</li>
+            <li>Con la lista extra (apagada de fábrica): estafas y tiendas falsas.</li>
+          </ul>
+        </div>
+        <div>
+          <h2>Qué no puede quitar</h2>
+          <p>
+            Los anuncios de YouTube, Twitch, Instagram, Facebook y TikTok. Vienen del mismo lugar que
+            el video o las fotos, así que quitarlos también quitaría lo que quieres ver.
+          </p>
+          <p><a href="obstaculos.html#no-puede">Por qué no se puede</a></p>
+        </div>
+      </div>
+    </section>
+
+    <ol class="camino">
+      <li class="paso">
+        <section id="compra" aria-labelledby="titulo-compra">
+          <h2 id="titulo-compra"><span class="num" aria-hidden="true">1</span> Consigue lo necesario</h2>
+          <p>Todo se consigue en tiendas de electrónica o en tiendas en línea.</p>
+
+          <dl class="lista-compra">
+            <div>
+              <dt>Una placa ESP32 clásica</dt>
+              <dd>
+                Busca “ESP32 WROOM-32” con 4 MB y puerto USB. Suele llamarse “ESP32 DevKit”.
+                <span class="nota">No sirven: las placas ESP8266 (por ejemplo, la D1 mini), las ESP32 de
+                otros modelos (S2, S3, C3, C6) ni las que no traen puerto USB.</span>
+                <figure class="dibujo-placa">
+                  <svg viewBox="0 0 220 300" role="img" aria-labelledby="placa-titulo placa-desc">
+                    <title id="placa-titulo">Dibujo de una placa ESP32 DevKit</title>
+                    <desc id="placa-desc">Placa alargada con una fila de patitas a cada lado, un módulo metálico arriba que dice ESP32-WROOM-32, y abajo el puerto USB con un botón pequeño a cada lado: EN y BOOT.</desc>
+                    <rect x="40" y="10" width="140" height="270" rx="8" class="placa-pcb"/>
+                    <g class="placa-patas">
+                      <circle cx="52" cy="70" r="3.5"/><circle cx="52" cy="85" r="3.5"/><circle cx="52" cy="100" r="3.5"/><circle cx="52" cy="115" r="3.5"/><circle cx="52" cy="130" r="3.5"/><circle cx="52" cy="145" r="3.5"/><circle cx="52" cy="160" r="3.5"/><circle cx="52" cy="175" r="3.5"/><circle cx="52" cy="190" r="3.5"/><circle cx="52" cy="205" r="3.5"/><circle cx="52" cy="220" r="3.5"/>
+                      <circle cx="168" cy="70" r="3.5"/><circle cx="168" cy="85" r="3.5"/><circle cx="168" cy="100" r="3.5"/><circle cx="168" cy="115" r="3.5"/><circle cx="168" cy="130" r="3.5"/><circle cx="168" cy="145" r="3.5"/><circle cx="168" cy="160" r="3.5"/><circle cx="168" cy="175" r="3.5"/><circle cx="168" cy="190" r="3.5"/><circle cx="168" cy="205" r="3.5"/><circle cx="168" cy="220" r="3.5"/>
+                    </g>
+                    <rect x="68" y="20" width="84" height="110" rx="3" class="placa-modulo"/>
+                    <text x="110" y="70" class="placa-texto">ESP32-</text>
+                    <text x="110" y="86" class="placa-texto">WROOM-32</text>
+                    <rect x="92" y="252" width="36" height="28" rx="3" class="placa-usb"/>
+                    <text x="110" y="296" class="placa-etiqueta">USB</text>
+                    <rect x="62" y="252" width="18" height="16" rx="3" class="placa-boton"/>
+                    <text x="71" y="246" class="placa-etiqueta">EN</text>
+                    <rect x="140" y="252" width="18" height="16" rx="3" class="placa-boton"/>
+                    <text x="149" y="246" class="placa-etiqueta placa-boot">BOOT</text>
+                  </svg>
+                  <figcaption>
+                    Así se ve. El color y el número de patitas cambian según la marca. Fíjate en el
+                    cuadro metálico que dice “ESP32-WROOM-32”, el puerto USB y los dos botones junto a
+                    él; uno dice BOOT (o IO0) y lo vas a usar después.
+                  </figcaption>
+                </figure>
+              </dd>
+            </div>
+            <div>
+              <dt>Un cable USB <strong>de datos</strong></dt>
+              <dd>
+                Muchos cables solo cargan y la computadora no ve la placa. Si no aparece, prueba otro
+                cable antes que nada: es el problema más común.
+              </dd>
+            </div>
+            <div>
+              <dt>Un cargador de 5 V</dt>
+              <dd>Cualquier cargador de teléfono sirve para dejarla prendida todo el día.</dd>
+            </div>
+            <div>
+              <dt>WiFi de 2.4 GHz en tu casa</dt>
+              <dd>
+                La placa no se conecta a redes de 5 GHz. Casi todos los módems tienen las dos; a veces
+                la de 2.4 GHz aparece como otra red con un nombre parecido.
+              </dd>
+            </div>
+          </dl>
+
+          <details class="drivers">
+            <summary>Si la computadora no reconoce la placa</summary>
+            <p>
+              La placa trae un chip para hablar por USB. Casi siempre es <strong>CH340</strong> o
+              <strong>CP2102</strong>; lo ves escrito en el chip pequeño junto al conector.
+            </p>
+            <ul>
+              <li>
+                <strong>Windows:</strong> muchas veces se instala solo. Si no, descarga el programa del
+                fabricante del chip:
+                <a href="https://www.wch.cn/downloads/CH341SER_ZIP.html" rel="noopener noreferrer">CH340 para Windows</a>
+                o <a href="https://www.silabs.com/developers/usb-to-uart-bridge-vcp-drivers" rel="noopener noreferrer">CP2102</a>
+                <span class="falta">falta verificar</span>.
+              </li>
+              <li>
+                <strong>Mac:</strong> si no aparece, instala el del fabricante:
+                <a href="https://www.wch.cn/downloads/CH341SER_MAC_ZIP.html" rel="noopener noreferrer">CH340 para Mac</a>
+                o <a href="https://www.silabs.com/developers/usb-to-uart-bridge-vcp-drivers" rel="noopener noreferrer">CP2102</a>
+                <span class="falta">falta verificar</span>.
+              </li>
+              <li><strong>Linux y Chromebook:</strong> no hace falta instalar nada.</li>
+            </ul>
+          </details>
+        </section>
+      </li>
+
+      <li class="paso">
+        <section id="paso-instalar" aria-labelledby="titulo-instalar">
+          <h2 id="titulo-instalar"><span class="num" aria-hidden="true">2</span> Instala SiBlock</h2>
+          <p>Conecta la placa a la computadora con el cable y pulsa el botón.</p>
+
+          <div id="instalar">
+            <esp-web-install-button manifest="firmware/manifest.json">
+              <button slot="activate" class="boton boton-grande" type="button">Instalar SiBlock</button>
+              <p slot="unsupported" class="aviso">
+                Para instalar usa Chrome o Edge en una computadora. Firefox y Safari todavía no pueden.
+              </p>
+              <p slot="not-allowed" class="aviso">
+                Esta página tiene que abrirse con una dirección que empiece con https.
+              </p>
+            </esp-web-install-button>
+
+            <details class="ingles">
+              <summary>La ventana del instalador está en inglés: qué pulsar</summary>
+              <ol>
+                <li>Elige tu placa en la lista y pulsa <strong>Connect</strong> (conectar).</li>
+                <li>Pulsa <strong>Install SiBlock</strong> (instalar). Si ya la tenías instalada, el botón dice
+                  <strong>Update SiBlock</strong> (actualizar).</li>
+                <li>La primera vez te pregunta por <strong>Erase device</strong> (borrar la placa): márcalo y pulsa
+                  <strong>Next</strong> (siguiente). Al actualizar casi nunca aparece; si aparece, déjalo sin marcar
+                  para no borrar tu WiFi.</li>
+                <li>Confirma con <strong>Install</strong> y espera unos minutos sin desconectar.</li>
+                <li>En <strong>Connect to Wi-Fi</strong> elige tu red, escribe su contraseña en
+                  <strong>Password</strong> y pulsa <strong>Connect</strong>.</li>
+              </ol>
+              <p>Los nombres de los botones al actualizar: <span class="falta">falta verificar</span> con la placa.</p>
+            </details>
+          </div>
+
+          <p id="sin-soporte" class="aviso" hidden>
+            Para instalar usa Chrome o Edge en una computadora. Firefox y Safari todavía no pueden.
+          </p>
+        </section>
+      </li>
+
+      <li class="paso">
+        <section id="despues" aria-labelledby="titulo-despues">
+          <h2 id="titulo-despues"><span class="num" aria-hidden="true">3</span> Después de instalar</h2>
+          <ul class="tareas">
+            <li>
+              <strong>Tu WiFi.</strong> El mismo instalador te lo pide al terminar. Si te lo saltaste,
+              vuelve a pulsar “Instalar SiBlock”: te deja darlo sin instalar de nuevo.
+            </li>
+            <li>
+              <strong>Guarda la contraseña de respaldo.</strong> Es la del WiFi propio de SiBlock. La
+              necesitas si un día cambias tu WiFi.
+            </li>
+            <li>
+              <strong>Abre tu panel y crea tu contraseña.</strong> Debe tener entre 12 y 64 caracteres. Si
+              te pide pulsar el botón BOOT, aprieta una vez el botón BOOT de la placa y vuelve a intentar.
+            </li>
+          </ul>
+
+          <div id="respaldo" class="respaldo">
+            <h3>Tu contraseña de respaldo y tu panel</h3>
+            <p>
+              Deja la placa conectada por USB y cierra la ventana del instalador. Luego pulsa el botón
+              y elige tu placa en la lista.
+            </p>
+            <p>
+              Cuando recibe tu WiFi, SiBlock tarda un par de minutos en prepararse. Mientras tanto no
+              contesta: espera con la página abierta y no desconectes la placa.
+            </p>
+            <button id="ver-respaldo" class="boton boton-secundario" type="button">Ver mi contraseña de respaldo</button>
+            <p id="respaldo-estado" class="estado" role="status" aria-live="polite"></p>
+            <div id="respaldo-datos" hidden>
+              <dl>
+                <dt>Red</dt>
+                <dd id="respaldo-red"></dd>
+                <dt>Contraseña</dt>
+                <dd id="respaldo-clave"></dd>
+              </dl>
+              <p>Guárdala: la necesitas si un día cambias tu WiFi.</p>
+            </div>
+            <div id="respaldo-panel" hidden>
+              <p>La dirección de tu SiBlock es <strong id="respaldo-ip"></strong>. Anótala: la usas en el paso 4.</p>
+              <p><a id="abrir-panel" class="boton" target="_blank" rel="noopener noreferrer">Abrir mi panel</a></p>
+            </div>
+          </div>
+        </section>
+      </li>
+
+      <li class="paso">
+        <section id="router" aria-labelledby="titulo-router">
+          <h2 id="titulo-router"><span class="num" aria-hidden="true">4</span> Dile a tu router que use SiBlock</h2>
+          <p>
+            Así todos los aparatos de la casa pasan por SiBlock sin tocarlos uno por uno. Antes de
+            cambiar algo, toma una foto de cómo estaba: si algo sale mal, lo regresas igual.
+          </p>
+          <ol class="pasos-router">
+            <li>
+              Entra a la página de tu router. La dirección, el usuario y la contraseña suelen venir en
+              una etiqueta debajo del aparato.
+            </li>
+            <li>
+              Busca la lista de aparatos conectados y pide que SiBlock tenga siempre la misma dirección.
+              Suele llamarse “reservar IP” o “IP fija”.
+            </li>
+            <li>
+              Busca la parte de “DNS” (a veces dentro de “LAN” o “DHCP”). En el primer DNS escribe la
+              dirección de SiBlock (la ves en el paso 3 o en tu panel). Deja vacío el segundo DNS (si te obliga a llenarlo, pon la misma dirección):
+              si pones otro, algunos aparatos lo usan y los anuncios se cuelan.
+            </li>
+            <li>
+              Si ves opciones de IPv6, apaga el DNS por IPv6. Si no, algunos aparatos se saltan SiBlock.
+            </li>
+            <li>Guarda, y apaga y prende el WiFi de tus aparatos para que tomen el cambio.</li>
+          </ol>
+          <p class="nota">
+            Cada router lo llama distinto y algunos de compañías de internet no dejan cambiar el DNS.
+          </p>
+          <p class="acciones-paso">
+            <a class="boton" href="guia-router.html">Ver la guía para mi módem</a>
+            <a href="fortigate.html">¿Tienes un FortiGate?</a>
+          </p>
+
+          <h3 id="ya-funciona">¿Ya funciona?</h3>
+          <p>
+            Abre tu panel desde el aparato que quieras revisar y mira el aviso de arriba; si algo falla,
+            pulsa «Algo no funciona». Esta página no puede revisarlo por ti.
+          </p>
+          <p><a href="obstaculos.html">Problemas comunes y cómo arreglarlos</a></p>
+        </section>
+      </li>
+    </ol>
+
+    <section id="puede" class="bloque" aria-labelledby="titulo-puede">
+      <h2 id="titulo-puede">Qué puede hacer</h2>
+      <p>Todo se maneja desde tu panel, en el teléfono o la computadora.</p>
+      <ul class="tareas">
+        <li><strong>Quitar anuncios y rastreadores</strong> en todos los aparatos de la casa a la vez.</li>
+        <li><strong>Ponerle nombre a cada aparato</strong> («Tele de la sala», «Celular de Ana») y hacer una pausa solo en uno, por ejemplo si una página no carga en la tele.</li>
+        <li><strong>Horarios para los niños:</strong> corta las redes sociales, los juegos o todo internet en los aparatos y a las horas que tú digas.</li>
+        <li><strong>Listas extra</strong> contra estafas y tiendas falsas, y contra algunos anuncios en español (por ahora son pocos). Vienen apagadas; las prendes si quieres.</li>
+        <li><strong>Respaldo:</strong> guarda tu configuración en un archivo y pásala a otra placa si un día la cambias.</li>
+      </ul>
+    </section>
+
+    <section id="luz" class="bloque" aria-labelledby="titulo-luz">
+      <h2 id="titulo-luz">¿Qué dice la luz?</h2>
+      <p>Muchas placas tienen una luz azul junto al puerto USB. Así te dice cómo está SiBlock sin abrir nada. Algunas placas no traen esa luz; si la tuya no la tiene, usa el panel para saber cómo está (falta verificar qué modelos la traen).</p>
+      <div class="luz-caja">
+          <figure class="dibujo-luz">
+            <svg viewBox="0 0 260 180" role="img" aria-label="Parte de abajo de la placa: el puerto USB al centro, el botón EN a la izquierda, el botón BOOT a la derecha y, junto al USB, la luz azul de SiBlock.">
+              <rect x="20" y="-20" width="220" height="190" rx="10" class="placa-pcb"/>
+              <g class="placa-patas">
+                <circle cx="34" cy="20" r="3.5"/><circle cx="34" cy="40" r="3.5"/><circle cx="34" cy="60" r="3.5"/><circle cx="34" cy="80" r="3.5"/>
+                <circle cx="226" cy="20" r="3.5"/><circle cx="226" cy="40" r="3.5"/><circle cx="226" cy="60" r="3.5"/><circle cx="226" cy="80" r="3.5"/>
+              </g>
+              <rect x="110" y="132" width="40" height="38" rx="3" class="placa-usb"/>
+              <text x="130" y="124" class="placa-etiqueta">USB</text>
+              <rect x="58" y="138" width="22" height="18" rx="3" class="placa-boton"/>
+              <text x="69" y="130" class="placa-etiqueta">EN</text>
+              <rect x="180" y="138" width="22" height="18" rx="3" class="placa-boton"/>
+              <text x="191" y="130" class="placa-etiqueta placa-boot">BOOT</text>
+              <circle cx="160" cy="98" r="13" class="luz-halo"/>
+              <circle cx="160" cy="98" r="6" class="luz-led"/>
+              <path d="M146 92 L112 66" class="luz-guia"/>
+              <text x="92" y="58" class="placa-etiqueta luz-texto">luz azul</text>
+            </svg>
+          </figure>
+        <ul class="luces">
+          <li>
+            <span class="luz-punto luz-fija" aria-hidden="true"></span>
+            <div><strong>Luz fija</strong> Todo bien: SiBlock está quitando anuncios.</div>
+          </li>
+          <li>
+            <span class="luz-punto luz-lenta" aria-hidden="true"></span>
+            <div><strong>Parpadea despacio</strong> Está bajando la lista de anuncios. Espera unos minutos.</div>
+          </li>
+          <li>
+            <span class="luz-punto luz-rapida" aria-hidden="true"></span>
+            <div>
+              <strong>Parpadea rápido</strong> Algo falla: no encuentra tu WiFi, está esperando que la
+              configures o no llega a internet. Abre tu panel. Si no abre, busca en tu teléfono la red
+              <strong class="sin-cortar">SiBlock-XXXX</strong> (las X cambian en cada placa), conéctate con la contraseña de
+              respaldo y sigue los pasos.
+            </div>
+          </li>
+        </ul>
+      </div>
+      <p class="nota">
+        Si tu placa tiene la luz azul y está apagada aunque la placa tiene corriente, desconéctala y vuelve a conectarla. Mientras
+        aprietas el botón BOOT, la luz hace otras cosas: es normal. Muchas placas tienen también una luz
+        roja; esa solo dice que le llega corriente.
+      </p>
+      <p>¿Olvidaste la contraseña o cambiaste tu WiFi? Mira <a href="#traba">Si algo se traba</a>.</p>
+    </section>
+
+    <section id="traba" class="bloque" aria-labelledby="titulo-traba">
+      <h2 id="titulo-traba">Si algo se traba</h2>
+      <p>El botón <strong>BOOT</strong> de la placa (el de la derecha del USB en el dibujo de arriba) te saca del apuro. Mantenlo apretado el tiempo que dice la tabla y suéltalo.</p>
+      <div class="tabla-scroll tabla-boton" role="region" aria-labelledby="titulo-traba" tabindex="0">
+      <table>
+        <thead><tr><th scope="col">Cuánto lo mantienes</th><th scope="col">Qué pasa</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Un toque</th><td>Durante 30 minutos puedes crear la contraseña del panel.</td></tr>
+          <tr><th scope="row">De 3 a 8 segundos (suelta cuando la luz azul quede fija)</th><td>SiBlock abre su propia red <strong class="sin-cortar">SiBlock-XXXX</strong> para que le des otro WiFi.</td></tr>
+          <tr><th scope="row">10 segundos o más</th><td>Borra la configuración: el WiFi, la contraseña del panel, los nombres de los aparatos, los horarios, las gráficas, las listas extra y las opciones de compartir y de Private Relay (vuelven a quedar apagadas). Tus reglas se quedan.</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <h3>Olvidé la contraseña del panel</h3>
+      <p>Mantén BOOT 10 segundos o más. Después vuelve a darle tu WiFi (con el instalador de esta página o con su red propia) y crea una contraseña nueva.</p>
+      <h3>Cambié mi WiFi</h3>
+      <ol>
+        <li>Mantén BOOT de 3 a 8 segundos. Si no haces nada, SiBlock también abre su red solo cuando lleva 10 minutos sin poder entrar a tu WiFi.</li>
+        <li>En tu teléfono, conéctate a la red <strong class="sin-cortar">SiBlock-XXXX</strong> con la contraseña de respaldo.</li>
+        <li>Se abre una página: elige tu WiFi nuevo, escribe su contraseña y pulsa “Conectar”.</li>
+      </ol>
+      <p>Si perdiste la contraseña de respaldo, conecta la placa por USB y vuelve a pulsar “Instalar SiBlock”: te deja darle el WiFi nuevo sin instalar otra vez.</p>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <p>
+      SiBlock es software libre bajo la licencia GPLv3.
+      <a href="https://github.com/Sibajx/esp32-adblock" rel="noopener noreferrer">Ver el código</a>.
+    </p>
+    <p>¿Dudas? Escribe a <a href="mailto:contacto@s-dev.win">contacto@s-dev.win</a>.</p>
+    <p class="pie-enlaces"><a href="privacidad.html">Privacidad</a> · <a href="contacto.html">Contáctanos</a> · <a href="estadisticas.html">Estadísticas</a> · <a href="en/" hreflang="en" lang="en">English</a></p>
+    <p class="pie-apoyo"><a id="apoyo" hidden rel="noopener noreferrer">Invítame un café</a></p>
+    <p class="nota">Esta página funciona sin cookies. Si cuenta visitas, lo hace sin saber quién eres.</p>
+  </footer>
+</body>
+</html>
