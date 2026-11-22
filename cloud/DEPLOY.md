@@ -72,15 +72,15 @@ verificar con la cuenta real):
 3. La respuesta automática a quien escribe necesita poder mandar a **cualquier** correo, y eso pide
    el plan de pago de Workers. Si tu cuenta no lo tiene, cambia en `wrangler.toml`
    `RESPUESTA_AUTOMATICA = "0"` (el mensaje al dueño sigue funcionando).
-4. Si al probar Contáctanos el registro del Worker dice `E_RECIPIENT_NOT_ALLOWED` al mandar a
-   `contacto@s-dev.win`, guarda tu correo verificado como **secreto** (no en el archivo):
+4. El Worker solo puede mandar a un correo **verificado** en Email Routing, así que el destino
+   (tu correo verificado, no `contacto@s-dev.win`) va como **secreto**, nunca en el archivo:
 
    ```sh
    npx wrangler secret put CONTACTO_DESTINO
    ```
 
-   y quita `CONTACTO_DESTINO` de `[vars]` en tu copia local para que no choquen (falta verificar
-   con la cuenta real).
+   `contacto@s-dev.win` sigue siendo la dirección pública: una regla de Email Routing la reenvía
+   a ese mismo correo verificado.
 
 ## 5) Turnstile (la casilla "no soy un robot" de la página)
 

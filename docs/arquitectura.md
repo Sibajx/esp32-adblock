@@ -367,8 +367,9 @@ la hora. Sin el Worker publicado, la placa y la página siguen funcionando (los 
 
 Bindings (`wrangler.toml`): `DB` (D1 `siblock`), `CORREO` (`send_email`), `LIMITE` (5 por
 minuto) y `LIMITE_CONTACTO` (2 por minuto). Variables: `ORIGEN`, `HOST_PAGINA`,
-`CONTACTO_DESTINO`, `CONTACTO_REMITENTE` (las dos `contacto@s-dev.win`), `RESPUESTA_AUTOMATICA`,
-`ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`. Secretos (nunca en el repo): `ID_PEPPER`, `TURNSTILE_SECRET`.
+`CONTACTO_REMITENTE` (`contacto@s-dev.win`), `RESPUESTA_AUTOMATICA`,
+`ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`. Secretos (nunca en el repo): `ID_PEPPER`, `TURNSTILE_SECRET` y
+`CONTACTO_DESTINO` (el correo verificado del dueño).
 Toda llamada de salida (Turnstile, llaves de Access) y el reloj entran por un objeto `Deps`, para
 probarlos sin internet.
 

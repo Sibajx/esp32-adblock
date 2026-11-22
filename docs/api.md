@@ -771,7 +771,7 @@ al dueño. Si ese correo falla → **500** `interno` y se devuelve el lugar. Si 
 día** y **50 al día en total** (`respuestas_dia`, con la dirección pasada por SHA-256 y pimienta;
 pasado el tope no se contesta y no es error). Si la respuesta falla, igual **200**.
 
-- **Correo al dueño**: a `CONTACTO_DESTINO` (`contacto@s-dev.win`), desde `CONTACTO_REMITENTE`
+- **Correo al dueño**: a `CONTACTO_DESTINO` (secreto: el correo verificado del dueño), desde `CONTACTO_REMITENTE`
   con nombre "SiBlock", `Reply-To` = el correo de la persona, asunto **fijo** `[SiBlock] ` + el
   nombre del tema (p. ej. `[SiBlock] No bloquea anuncios`): no lleva nada que escribió la persona. El texto va sin HTML: se quitan las etiquetas `<…>`, los
   caracteres de control y los `\r`.

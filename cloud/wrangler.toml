@@ -29,9 +29,9 @@ simple = { limit = 2, period = 60 }
 crons = ["17 3 * * *"]
 
 [vars]
+# CONTACTO_DESTINO es secreto (wrangler secret put): el Worker solo manda a un correo verificado.
 ORIGEN = "https://siblock.s-dev.win"
 HOST_PAGINA = "siblock.s-dev.win"
-CONTACTO_DESTINO = "contacto@s-dev.win"
 CONTACTO_REMITENTE = "contacto@s-dev.win"
 RESPUESTA_AUTOMATICA = "0"  # "1" pide el plan de pago de Workers (ver DEPLOY.md, paso 4)
 ACCESS_TEAM_DOMAIN = "https://orange-grass-f926.cloudflareaccess.com"

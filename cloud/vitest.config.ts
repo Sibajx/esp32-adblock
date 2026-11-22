@@ -14,6 +14,9 @@ export default defineConfig(async () => {
           bindings: {
             ID_PEPPER: "pimienta-de-prueba",
             TURNSTILE_SECRET: "secreto-de-prueba",
+            CONTACTO_DESTINO: "contacto@s-dev.win",
+            // Producción la tiene apagada (plan gratis); las pruebas cubren las dos formas.
+            RESPUESTA_AUTOMATICA: "1",
             TEST_MIGRATIONS: migraciones,
           },
         },
