@@ -7,8 +7,8 @@ fase 2 cubrió §2 (guía general), §2.1, §2.3, §2.5, §3, §3.2-6/7, parte d
 fase 3 ("Cloudflare") cubrió §2.2 (sin modelo ni OUI), §3.2-8, §3.2-10, §3.3 (página pública y
 panel del dueño) y §3.4; la fase 5 ("Extras") cubrió §3.1 (ideas 1 a 5) y §3.5 (ideas 3, 4, 5, 6
 y 9), sin la sugerencia de nombre por marca (OUI). Lo marcado ✅ está en el código; el Worker
-todavía no está publicado (lo publica el autor con `cloud/DEPLOY.md`). La cajita 3D (§3.2-12) y el
-video (§3.5-2) esperan a la placa real. El resto sigue pendiente. Cada sección dice qué se quiere,
+ya está publicado. La cajita 3D (§3.2-12) está en `hardware/caja/` y falta probarla con la placa
+real; el video (§3.5-2) espera a la placa. El resto sigue pendiente. Cada sección dice qué se quiere,
 por qué y qué falta decidir.
 
 ## Para quién es
@@ -409,7 +409,7 @@ nuevas y la RAM al bajarlas (`docs/pruebas.md`, "Fase 5").
     otro aviso aparte ("Compartir datos anónimos"), no con esta consulta.
 11. **Plan B con dos placas**: guía para tener una de respaldo como segundo DNS, y que las reglas
     propias se copien de una a otra. Así la casa no se queda sin internet si una falla.
-12. **Cajita imprimible en 3D** para la placa (FreeCAD), con hueco para ver el LED y el botón BOOT.
+12. **Cajita imprimible en 3D** para la placa (FreeCAD), con hueco para ver el LED y el botón BOOT. **Hecha:** `hardware/caja/` (falta probarla con una placa real).
     **Pendiente (fuera de la fase 5):** no es software; se hace con FreeCAD cuando llegue la placa
     real (§5), para medir el hueco del LED y del botón BOOT.
 

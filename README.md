@@ -73,6 +73,11 @@ Si algo se traba, el botón **BOOT** de la placa te saca del apuro:
 | Entre 3 y 8 s | Abre la red `SiBlock-XXXX` para darle otro WiFi (usa la contraseña de respaldo). También se abre sola si lleva 10 min sin poder entrar a tu WiFi |
 | 10 s o más | Borra el WiFi, las contraseñas, los nombres de los aparatos, los horarios, las listas elegidas, la opción de Private Relay, la historia de las gráficas y las opciones de Compartir con SiBlock (vuelven a quedar apagadas; el número de instalación cambia). Tus reglas y la lista bajada se quedan |
 
+## Caja para imprimir
+
+En [`hardware/caja/`](hardware/caja/) hay una caja para imprimir en 3D, con la ventana del LED y
+el botón BOOT, ventilación y ojales para colgarla. Ahí mismo están las instrucciones.
+
 ## Contacto
 
 contacto@s-dev.win
