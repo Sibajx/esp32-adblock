@@ -90,7 +90,7 @@ fieldset{border:0;padding:0;margin:0;display:grid;gap:4px}legend{font-size:14px;
 <ul id="devs"></ul><div id="dmsg" class="l" aria-live="polite"></div></div>
 <h2>Horarios</h2>
 <div class="card stack" style="max-width:none">
-<span class="l">Bloquea redes sociales, juegos o todo internet en ciertos aparatos y a ciertas horas (por ejemplo, a la hora de dormir). Los horarios siguen aunque pongas una pausa. Es una ayuda, no un candado: un aparato que cambia su dirección en el WiFi (los celulares lo hacen si tienen la «dirección privada» puesta), usa DNS cifrado o una VPN se lo salta.</span>
+<span class="l">Bloquea redes sociales, juegos o todo internet en ciertos aparatos y a ciertas horas (por ejemplo, a la hora de dormir). Los horarios siguen aunque pongas una pausa. Con «Juegos» también se cortan la cuenta de Xbox, Minecraft Education y los juegos con antitrampas, y la Switch dice «sin internet»; con «Redes sociales», «Entrar con Facebook» y los enlaces de X. YouTube y WhatsApp no se cortan. Es una ayuda, no un candado: un aparato que cambia su dirección en el WiFi (los celulares lo hacen si tienen la «dirección privada» puesta), usa DNS cifrado o una VPN se lo salta.</span>
 <p id="sinhora" class="warn" hidden>Los horarios empiezan cuando SiBlock tenga la hora de internet.</p>
 <p id="tzaviso" class="warn" hidden>La hora de tu casa cambió. Guarda otra vez un horario para corregirla.</p>
 <ul id="hlist"></ul>

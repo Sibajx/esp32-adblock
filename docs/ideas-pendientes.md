@@ -382,9 +382,10 @@ nuevas y la RAM al bajarlas (`docs/pruebas.md`, "Fase 5").
    aparatos y a ciertas horas. Necesita la hora de NTP, que ya está.
    Hecho: 8 horarios con aparatos, grupos ("Redes sociales", "Juegos", "Todo internet"), días y
    horas, con cruce de medianoche; ganan sobre "Permitir"; sin hora de internet no bloquean; el
-   panel avisa si cambió la hora de la casa. **Pendiente:** las listas de cada grupo son cortas y
-   a mano (falta verificar que cubran las apps); quien cambia su MAC, usa DNS cifrado o VPN se los
-   salta.
+   panel avisa si cambió la hora de la casa. Las listas de cada grupo salen de AdGuard
+   HostlistsRegistry más algunos agregados a mano (`docs/grupos.md`). **Pendiente:** verificar con
+   un aparato real los dominios marcados (Free Fire, Stumble Guys); quien cambia su MAC, usa DNS
+   cifrado o VPN se los salta.
 5. ✅ (fase 5) **LED de estado** con el LED azul de la placa (GPIO2): fijo = todo bien, parpadeo = actualizando,
    apagado o parpadeo rápido = problema. Explicarlo en la guía con un dibujo.
    Hecho: fijo / parpadeo de 1 s (bajando la lista) / parpadeo de 200 ms (sin WiFi, modo de

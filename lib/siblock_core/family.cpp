@@ -8,18 +8,66 @@
 namespace siblock {
 
 namespace {
-// Grupos de sitios. Arreglos ordenados (strcmp) para buscar con búsqueda binaria.
-// Lista corta inicial, falta verificar que cubra las apps (a veces usan otros nombres).
+// Grupos de sitios para los horarios ("Redes sociales" y "Juegos"). Ver docs/grupos.md.
+//
+// Fuente: AdGuard HostlistsRegistry, "blocked services"
+//   https://github.com/AdguardTeam/HostlistsRegistry
+//   licencia GPL-3.0 (la misma de SiBlock), commit ae662d803ad6bfb4b9de09661f9396c978952dac
+//   (main, 2026-11-22). Se tomaron solo los dominios base de cada servicio.
+// Agregados a mano (no están en AdGuard): threads.com, threads.net, fortnite.com, xbox.com,
+//   Supercell (Brawl Stars, Clash), Garena / Free Fire, HoYoverse, Niantic, Innersloth (Among Us),
+//   Stumble Guys y Moonton (Mobile Legends).
+//   Falta verificar con un aparato real: ggblueshark.com, ggwhitehawk.com, stumbleguys.com,
+//   kitkagames.com.
+// Nunca van aquí (se cae media casa): microsoft.com, live.com, google.com, googleapis.com,
+//   gstatic.com, apple.com ni CDNs compartidos (akamai, cloudfront). WhatsApp y Messenger son
+//   mensajes, no redes. YouTube no está (se usa para la escuela).
+//
+// IMPORTANTE: ordenados por bytes (strcmp, LC_ALL=C) porque se buscan con búsqueda binaria.
+// Un nombre coincide si es igual a uno de la lista o es un subdominio suyo.
 const char* const kSocial[] = {
-    "cdninstagram.com", "discord.com", "discord.gg",   "facebook.com", "fbcdn.net",     "instagram.com",
-    "pinterest.com",    "reddit.com",  "snapchat.com", "threads.net",  "tiktok.com",    "tiktokcdn.com",
-    "tiktokv.com",      "twimg.com",   "twitter.com",  "x.com",
+    "ads-twitter.com", "bsky.app", "bsky.social", "cdninstagram.com", "dis.gd", "discord.co", "discord.com",
+    "discord.gg", "discord.gift", "discord.media", "discord.new", "discordapp.com", "discordapp.net",
+    "discordcdn.com", "discordsays.com", "ext-twitch.tv", "facebook.com", "facebook.net", "fb.com", "fb.gg",
+    "fb.me", "fb.watch", "fbcdn.com", "fbcdn.net", "fbsbx.com", "ig.me", "igcdn.com", "igsonar.com",
+    "igtv.com", "impala-media-production.s3.amazonaws.com", "instagram.com", "jtvnw.net", "muscdn.com",
+    "musical.ly", "periscope.tv", "pin.it", "pinimg.com", "pinterest.cl", "pinterest.co", "pinterest.com",
+    "pinterest.com.mx", "pinterest.es", "pinterest.mx", "pscp.tv", "redd.it", "reddit.com",
+    "redditmedia.com", "redditstatic.com", "sc-cdn.net", "snap-dev.net", "snapads.com", "snapchat.com",
+    "snapkit.co", "t.co", "threads.com", "threads.net", "tiktok.com", "tiktokcdn-eu.com",
+    "tiktokcdn-us.com", "tiktokcdn.com", "tiktokrow-cdn.com", "tiktokv.com", "tiktokv.eu", "ttlivecdn.com",
+    "ttvnw.net", "tweetdeck.com", "twimg.com", "twitch.tv", "twitchcdn.net", "twitchsvc.net", "twitter.com",
+    "twttr.com", "twvid.com", "x.com",
 };
-// Lista corta inicial, falta verificar que cubra las apps.
 const char* const kGames[] = {
-    "epicgames.com",      "fortnite.com",     "minecraft.net", "playstation.net", "rbxcdn.com",
-    "roblox.com",         "steamcommunity.com", "steampowered.com", "supercell.com", "xboxlive.com",
+    "activision.com", "activisionblizzard.com", "among.us", "battle.net", "blizzard.com", "blox.com",
+    "brawlstars.com", "brawlstarsgame.com", "callofduty.com", "clashofclans.com", "clashroyale.com",
+    "clashroyaleapp.com", "cubecraft.net", "demonware.net", "ea.com", "eac-cdn.com", "eamobile.com",
+    "easports.com", "easy.ac", "easyanticheat.net", "epicgames.com", "fortnite.com", "freefiremobile.com",
+    "gaikai.com", "gamepass.com", "garena.com", "garenanow.com",
+    "ggblueshark.com",  // falta verificar con un aparato real
+    "ggwhitehawk.com",  // falta verificar con un aparato real
+    "hoyolab.com", "hoyoverse.com", "innersloth.com",
+    "kitkagames.com",  // falta verificar con un aparato real
+    "leagueoflegends.com", "lolstatic.com", "lolusercontent.com", "mihoyo.com", "minecraft-services.net",
+    "minecraft.net", "minecraftservices.com", "mobilelegends.com", "mobilelegends.net", "mojang.com",
+    "moonton.com", "nianticlabs.com", "nintendo-europe.com", "nintendo.co.jp", "nintendo.com", "nintendo.es",
+    "nintendo.eu", "nintendo.jp", "nintendo.net", "nintendowifi.net", "origin.com", "playstation-cloud.com",
+    "playstation.com", "playstation.net", "playvalorant.com", "pokemongolive.com", "pvp.net", "rbx.com",
+    "rbxcdn.com", "rbxcdn.net", "rbxinfra.com", "rbxinfra.net", "rgpub.io", "riotcdn.com", "riotcdn.net",
+    "riotgames.com", "roblox.com", "robloxcdn.com", "s.team", "sonyentertainmentnetwork.com",
+    "steam-chat.com", "steamcommunity.com", "steamcontent.com", "steamdeck.com", "steamgames.com",
+    "steampowered.com", "steamserver.net", "steamstatic.com", "steamusercontent.com",
+    "stumbleguys.com",  // falta verificar con un aparato real
+    "supercell.com", "supercellid.com", "tnt-ea.com", "valvesoftware.com", "xbox.com", "xboxab.com",
+    "xboxlive.com", "xboxservices.com",
 };
+
+bool strictlySorted(const char* const* arr, size_t count) {
+  for (size_t i = 1; i < count; i++)
+    if (std::strcmp(arr[i - 1], arr[i]) >= 0) return false;
+  return true;
+}
 
 // Compara (p, n) con una cadena terminada en '\0' como lo haría strcmp.
 int cmpN(const char* p, size_t n, const char* s) {
@@ -147,6 +195,14 @@ bool inGroups(const std::string& name, uint8_t groups) {
     if ((groups & kGroupGames) && inSorted(kGames, sizeof kGames / sizeof *kGames, p, n)) return true;
     return false;
   });
+}
+
+// Solo para las pruebas (test_host); no está en family.h. Dice si las dos listas siguen
+// ordenadas sin repetidos y cuántos dominios tiene cada una.
+bool groupListsSortedForTest(size_t& social, size_t& games) {
+  social = sizeof kSocial / sizeof *kSocial;
+  games = sizeof kGames / sizeof *kGames;
+  return strictlySorted(kSocial, social) && strictlySorted(kGames, games);
 }
 
 bool validTzMinutes(int32_t tz) { return tz >= -720 && tz <= 840; }

@@ -24,6 +24,11 @@
 // siblock_core, así que se compila aquí junto con la prueba.
 #include "../lib/adblock_core/adblock_core.cpp"
 
+// Gancho de prueba de family.cpp (no está en family.h a propósito).
+namespace siblock {
+bool groupListsSortedForTest(size_t& social, size_t& games);
+}
+
 using namespace siblock;
 
 static int fails = 0, checks = 0;
@@ -1310,6 +1315,27 @@ static void testFamily() {
                         "xboxlive.com", "playstation.net", "steampowered.com", "steamcommunity.com", "supercell.com"})
     CHECK(inGroups(n, kGroupGames) && !inGroups(n, kGroupSocial));
   CHECK(!inGroups("ax.com", kGroupSocial) && !inGroups("tiktokc.com", kGroupSocial));
+
+  // Listas completas (AdGuard HostlistsRegistry + agregados a mano, ver docs/grupos.md).
+  {
+    size_t nSocial = 0, nGames = 0;
+    CHECK(groupListsSortedForTest(nSocial, nGames));  // la búsqueda binaria lo necesita
+    CHECK(nSocial == 74 && nGames == 91);
+  }
+  for (const char* n : {"v16-webapp.tiktok.com", "bsky.app", "www.threads.com", "t.co", "i.redd.it",
+                        "static-cdn.jtvnw.net", "gateway.discord.gg", "scontent.cdninstagram.com", "pin.it",
+                        "pinterest.com.mx", "impala-media-production.s3.amazonaws.com"})
+    CHECK(inGroups(n, kGroupSocial) && !inGroups(n, kGroupGames));
+  for (const char* n : {"apis.roblox.com", "ctest.cdn.nintendo.net", "among.us", "s.team", "easy.ac",
+                        "game.brawlstars.com", "sdk.hoyoverse.com", "xbox.com", "user.auth.xboxlive.com",
+                        "pokemongolive.com", "kitkagames.com", "stumbleguys.com", "xboxservices.com"})
+    CHECK(inGroups(n, kGroupGames) && !inGroups(n, kGroupSocial));
+  // Lo que nunca se corta: cuentas, Google, mensajes, YouTube y CDNs compartidos.
+  for (const char* n : {"login.live.com", "live.com", "microsoft.com", "www.google.com", "googleapis.com",
+                        "gstatic.com", "apple.com", "web.whatsapp.com", "whatsapp.net", "messenger.com",
+                        "www.youtube.com", "i.ytimg.com", "s3.amazonaws.com", "other.s3.amazonaws.com",
+                        "cloudfront.net", "akamaihd.net", "co", "team", "nintendo.org", "xbox.co"})
+    CHECK(!inGroups(n, kGroupSocial | kGroupGames));
 
   Family f;
   for (int i = 0; i < 32; i++) CHECK(f.setName(idOf(uint8_t(i)), "A" + std::to_string(i)));
