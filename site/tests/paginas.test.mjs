@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { join, dirname, posix } from 'node:path';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 const SITIO = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -207,17 +208,27 @@ test('_headers: la CSP suma analítica y Turnstile, y sigue sin formularios nati
   assert.ok(!dir['script-src'].includes("'unsafe-eval'"));
 });
 
-test('_headers: unpkg solo para la carpeta fija del instalador, con HSTS y permisos cerrados', () => {
+test('_headers: todo se sirve desde el propio sitio (sin unpkg), con HSTS y permisos cerrados', () => {
   const h = readFileSync(join(SITIO, '_headers'), 'utf8');
-  const csp = h.match(/Content-Security-Policy:\s*(.+)/)[1];
-  const dir = Object.fromEntries(csp.split(';').map((d) => d.trim().split(/\s+/)).map(([k, ...v]) => [k, v]));
-  for (const k of ['script-src', 'connect-src']) {
-    for (const v of dir[k].filter((x) => x.includes('unpkg'))) {
-      assert.equal(v, 'https://unpkg.com/esp-web-tools@10.4.0/dist/web/', k);
-    }
-  }
+  assert.doesNotMatch(h, /unpkg/);
   assert.match(h, /Strict-Transport-Security: max-age=\d{7,}/);
   assert.match(h, /Permissions-Policy:[^\n]*camera=\(\)[^\n]*microphone=\(\)[^\n]*geolocation=\(\)/);
+});
+
+test('ninguna página carga nada de unpkg', () => {
+  for (const pagina of TODAS) assert.doesNotMatch(leer(pagina), /unpkg\.com/, pagina);
+});
+
+test('vendor/esp-web-tools: cada archivo coincide con SHA256SUMS y no sobra ninguno', () => {
+  const dir = join(SITIO, 'vendor', 'esp-web-tools', '10.4.0');
+  const sumas = new Map(readFileSync(join(dir, 'SHA256SUMS'), 'utf8').trim().split('\n')
+    .map((l) => l.split(/\s+\*?/)).map(([h, f]) => [f, h]));
+  assert.ok(sumas.has('install-button.js') && sumas.has('LICENSE'));
+  const archivos = readdirSync(dir).filter((f) => f !== 'SHA256SUMS').sort();
+  assert.deepEqual(archivos, [...sumas.keys()].sort());
+  for (const [f, h] of sumas) {
+    assert.equal(createHash('sha256').update(readFileSync(join(dir, f))).digest('hex'), h, f);
+  }
 });
 
 test('_headers: el panel del dueño no se indexa', () => {

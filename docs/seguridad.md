@@ -262,10 +262,11 @@ que logra es una sugerencia equivocada en la tabla de módems; nada se ejecuta, 
 en la página y el dueño ve los dominios reportados antes de tocar la lista.
 
 La página publicada manda `Strict-Transport-Security` (1 año, con subdominios) y cierra cámara,
-micrófono, ubicación y pagos en `Permissions-Policy`. El instalador (ESP Web Tools 10.4.0) se
-carga de unpkg con SRI en el archivo de entrada; la CSP solo deja `https://unpkg.com/esp-web-tools@10.4.0/dist/web/`
-(no todo unpkg). Los trozos que ese archivo carga después no llevan SRI: copiarlo a `site/vendor/`
-con sumas revisadas en CI queda pendiente (falta decisión del autor: es bajar un paquete de npm).
+micrófono, ubicación y pagos en `Permissions-Policy`. El instalador (ESP Web Tools 10.4.0,
+licencia Apache-2.0) va copiado en `site/vendor/esp-web-tools/10.4.0/`: se bajó de npm, se comparó
+archivo por archivo con unpkg y el de entrada coincide con su SRI. Una prueba revisa cada archivo
+contra `SHA256SUMS`, así que la página ya no depende de ningún sitio externo para instalar y la CSP
+no deja cargar scripts de unpkg.
 
 En la página, los reportes llevan además **Turnstile** (validado en el Worker con el `hostname`
 de la página; un token de otro sitio no vale).
