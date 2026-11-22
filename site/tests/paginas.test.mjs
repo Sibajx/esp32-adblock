@@ -47,6 +47,14 @@ function resolver(pagina, archivo) {
 }
 
 /** Idioma esperado según la carpeta. */
+/** 404.html se sirve en cualquier ruta, así que usa enlaces desde la raíz: '/x' → 'x'. */
+const DESDE_RAIZ = '404.html';
+function sinRaiz(pagina, url) {
+  if (pagina !== DESDE_RAIZ || typeof url !== 'string' || !url.startsWith('/')) return url;
+  const r = url.slice(1);
+  return r === '' || r.startsWith('#') ? `index.html${r}` : r;
+}
+
 function lenguaDe(pagina) {
   return pagina.startsWith('en/') ? 'en' : 'es';
 }
@@ -87,7 +95,7 @@ for (const pagina of TODAS) {
     for (const tag of tags) {
       const url = atributo(tag, 'href') ?? atributo(tag, 'src');
       if (url === null || esExterno(url) || /^mailto:/i.test(url) || /^data:/i.test(url)) continue;
-      const [archivo, ancla] = url.split('#');
+      const [archivo, ancla] = sinRaiz(pagina, url).split('#');
       assert.ok(!archivo.startsWith('/'), `ruta rara: ${url}`);
       const destino = resolver(pagina, archivo);
       assert.ok(!destino.startsWith('..'), `se sale del sitio: ${url}`);
@@ -162,7 +170,7 @@ test('hay páginas nuevas de la fase 3', () => {
 for (const pagina of PAGINAS) {
   test(`${pagina}: carga js/inicio.js como módulo`, () => {
     const html = leer(pagina);
-    const tag = etiquetas(html, 'script').find((t) => atributo(t, 'src') === 'js/inicio.js');
+    const tag = etiquetas(html, 'script').find((t) => sinRaiz(pagina, atributo(t, 'src')) === 'js/inicio.js');
     assert.ok(tag, 'no carga js/inicio.js');
     assert.equal(atributo(tag, 'type'), 'module');
   });
@@ -171,8 +179,9 @@ for (const pagina of PAGINAS) {
     const html = leer(pagina);
     const pie = html.match(/<footer[\s\S]*?<\/footer>/i);
     assert.ok(pie, 'sin <footer>');
-    assert.match(pie[0], /<a href="privacidad\.html">Privacidad<\/a>/);
-    assert.match(pie[0], /<a href="contacto\.html">Contáctanos<\/a>/);
+    const raiz = pagina === DESDE_RAIZ ? '/' : '';
+    assert.ok(pie[0].includes(`<a href="${raiz}privacidad.html">Privacidad</a>`), 'sin Privacidad en el pie');
+    assert.ok(pie[0].includes(`<a href="${raiz}contacto.html">Contáctanos</a>`), 'sin Contáctanos en el pie');
     assert.match(pie[0], /mailto:contacto@s-dev\.win/);
     assert.doesNotMatch(pie[0], /no usa cookies ni cuenta tus visitas/);
   });
@@ -356,7 +365,7 @@ for (const pagina of PAGINAS) {
     assert.ok(enlace, 'sin enlace hreflang="en" en el pie');
     assert.equal(atributo(enlace, 'lang'), 'en');
     const esperado = PARES[pagina] ?? 'en/index.html';
-    assert.equal(resolver(pagina, atributo(enlace, 'href')), esperado);
+    assert.equal(resolver(pagina, sinRaiz(pagina, atributo(enlace, 'href'))), esperado);
     assert.match(pie, /hreflang="en" lang="en">English<\/a>/);
   });
 }
@@ -476,5 +485,16 @@ for (const [pagina, palabras] of [
 test('la página no promete quitar virus (la lista extra es de estafas)', () => {
   for (const pagina of ['index.html', 'en/index.html']) {
     assert.doesNotMatch(readFileSync(join(SITIO, pagina), 'utf8'), /virus/i, pagina);
+  }
+});
+
+test('404.html: enlaces absolutos (Pages la sirve en cualquier ruta) y fuera de los buscadores', () => {
+  const html = leer('404.html');
+  assert.match(html, /<meta\s+name="robots"\s+content="noindex"/i);
+  const tags = [...etiquetas(html, 'a'), ...etiquetas(html, 'link'), ...etiquetas(html, 'img'), ...etiquetas(html, 'script')];
+  for (const tag of tags) {
+    const url = atributo(tag, 'href') ?? atributo(tag, 'src');
+    if (!url || url.startsWith('#') || /^(https?:|mailto:)/i.test(url)) continue;
+    assert.ok(url.startsWith('/'), `enlace relativo en 404.html: ${url}`);
   }
 });
