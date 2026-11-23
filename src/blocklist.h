@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "adblock_core.h"
+#include "community.h"
 
 enum class Verdict : uint8_t {
   kAllowed,        // no está en ninguna lista
@@ -44,9 +45,10 @@ class BlockList {
   // puede guardar, quedan las de antes.
   bool replaceRules(const std::vector<std::string>& block, const std::vector<std::string>& allow);
 
-  // Permitidos de la comunidad: huellas de siblock::communityHash, ordenadas (vacío = ninguno).
-  // Van aparte de las reglas propias: no se guardan en /custom.txt ni salen en el respaldo.
-  void setCommunity(std::vector<uint64_t> keys);
+  // Permitidos de la comunidad: huellas de siblock::communityHash hechas con la llave `key`,
+  // ordenadas (vacío = ninguno). Van aparte de las reglas propias: no se guardan en /custom.txt ni
+  // salen en el respaldo.
+  void setCommunity(const siblock::CommunityKey& key, std::vector<uint64_t> keys);
 
   // Pausa: 0 segundos = reanudar.
   void pause(uint32_t seconds);
@@ -68,10 +70,11 @@ class BlockList {
   void cleanupTemp();
   bool saveRules();
 
-  SemaphoreHandle_t mutex_ = nullptr;   // protege index_, file_, rules_, community_, lastError_
+  SemaphoreHandle_t mutex_ = nullptr;   // protege index_, file_, rules_, communityKey_, community_, lastError_
   std::unique_ptr<uint32_t[]> index_;
   fs::File file_;
   adblock::CustomRules rules_;
+  siblock::CommunityKey communityKey_{};
   std::vector<uint64_t> community_;
   volatile uint32_t count_ = 0;
   volatile uint32_t lastUpdateMs_ = 0;

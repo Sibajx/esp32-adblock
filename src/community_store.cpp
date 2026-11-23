@@ -1,6 +1,7 @@
 #include "community_store.h"
 
 #include <LittleFS.h>
+#include <esp_random.h>
 #include <time.h>
 
 #include <vector>
@@ -11,7 +12,7 @@
 namespace {
 constexpr const char* kFile = "/comunidad.bin";
 constexpr const char* kTmp = "/comunidad.new";
-constexpr size_t kMaxFile = 16 + siblock::kCommunityMax * 8;
+constexpr size_t kMaxFile = siblock::kCommunityFileHeader + siblock::kCommunityMax * 8;
 
 BlockList* gList = nullptr;
 community::Info gInfo;  // lo tocan solo el loop (main.cpp) y el panel, que corren en la misma tarea
@@ -20,7 +21,7 @@ void apply(siblock::CommunityList& l) {
   gInfo.count = uint16_t(l.keys.size());
   gInfo.version = l.version;
   gInfo.updated = l.updated;
-  if (gList) gList->setCommunity(std::move(l.keys));
+  if (gList) gList->setCommunity(l.key, std::move(l.keys));
 }
 
 // Se escribe en /comunidad.new y se renombra: un corte de luz deja la vieja o la nueva.
@@ -61,12 +62,18 @@ void begin(BlockList* list) {
     apply(l);
     Serial.printf("[comunidad] %u permitidos guardados\n", unsigned(gInfo.count));
   } else {
-    Serial.println("[comunidad] /comunidad.bin dañado: se ignora hasta la próxima bajada");
+    Serial.println("[comunidad] /comunidad.bin dañado o de una versión vieja: se ignora hasta la próxima bajada");
   }
 }
 
 bool refresh() {
-  siblock::CommunityParser parser;
+  // Llave nueva al azar en cada bajada: las huellas se rehacen con los nombres que llegan.
+  siblock::CommunityKey key;
+  for (size_t i = 0; i < key.size(); i += 4) {
+    uint32_t r = esp_random();
+    for (size_t j = 0; j < 4; j++) key[i + j] = uint8_t(r >> (8 * j));
+  }
+  siblock::CommunityParser parser(key);
   siblock::CommunityList l;
   if (!cloud::fetchCommunity(parser) || !parser.finish(l)) return false;
   time_t now = time(nullptr);

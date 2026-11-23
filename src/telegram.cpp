@@ -30,12 +30,13 @@ Status& status() {
 }
 
 int send(const std::string& text) {
-  if (WiFi.status() != WL_CONNECTED || ESP.getMaxAllocHeap() < kMinFreeBlock) return -1;
+  if (WiFi.status() != WL_CONNECTED) return siblock::kTgNoNet;
+  if (ESP.getMaxAllocHeap() < kMinFreeBlock) return siblock::kTgLowMem;
   String token = settings::telegramToken(), chat = settings::telegramChat();
   std::string body = siblock::telegramForm(std::string(chat.c_str(), chat.length()), text);
   if (body.empty() || !siblock::validTelegramToken(std::string(token.c_str(), token.length()))) {
     wipe(token);
-    return 0;
+    return siblock::kTgNoConfig;
   }
   String url;
   url.reserve(sizeof(SIBLOCK_TELEGRAM_BASE) + token.length() + 20);
@@ -43,7 +44,7 @@ int send(const std::string& text) {
   url += token;
   url += "/sendMessage";
   wipe(token);
-  int code = -1;
+  int code = siblock::kTgNoNet;
   {
     WiFiClientSecure client;
     client.setCACert(ROOT_CAS);

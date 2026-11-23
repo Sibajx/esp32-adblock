@@ -158,7 +158,7 @@ Verdict BlockList::check(const std::string& name) {
   bool community = false;
   if (xSemaphoreTake(mutex_, pdMS_TO_TICKS(50)) == pdTRUE) {
     r = rules_.match(name);
-    community = siblock::communityAllows(community_, name);
+    community = siblock::communityAllows(communityKey_, community_, name);
     xSemaphoreGive(mutex_);
   }
   if (r == CustomRules::kAllow) return Verdict::kAllowedCustom;
@@ -173,8 +173,9 @@ Verdict BlockList::check(const std::string& name) {
   return hit ? Verdict::kBlockedList : Verdict::kAllowed;
 }
 
-void BlockList::setCommunity(std::vector<uint64_t> keys) {
+void BlockList::setCommunity(const siblock::CommunityKey& key, std::vector<uint64_t> keys) {
   Lock l(mutex_);
+  communityKey_ = key;
   community_ = std::move(keys);
 }
 

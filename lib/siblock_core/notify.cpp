@@ -109,7 +109,15 @@ int32_t weeklySummaryDay(int64_t epochSeconds, int16_t tzMinutes) {
   return int32_t((epochSeconds + int64_t(tzMinutes) * 60) / 86400);
 }
 
+bool WeeklyOnce::take(int32_t day, uint32_t stored) {
+  if (day <= 0 || uint32_t(day) == stored || uint32_t(day) == last_) return false;
+  last_ = uint32_t(day);
+  return true;
+}
+
 TelegramResult telegramResultFor(int httpCode) {
+  if (httpCode == kTgLowMem) return TelegramResult::kLowMem;
+  if (httpCode == kTgNoConfig) return TelegramResult::kNoConfig;
   if (httpCode <= 0) return TelegramResult::kNoNet;
   if (httpCode >= 200 && httpCode < 300) return TelegramResult::kOk;
   if (httpCode == 401 || httpCode == 404) return TelegramResult::kToken;
@@ -128,8 +136,36 @@ const char* telegramResultName(TelegramResult r) {
     case TelegramResult::kLimit: return "limite";
     case TelegramResult::kNoNet: return "sin_internet";
     case TelegramResult::kRejected: return "rechazado";
+    case TelegramResult::kLowMem: return "poca_ram";
+    case TelegramResult::kNoConfig: return "sin_datos";
     default: return "never";
   }
+}
+
+bool telegramTransient(TelegramResult r) { return r == TelegramResult::kNoNet || r == TelegramResult::kLowMem; }
+
+bool TelegramRetry::waiting(uint32_t nowMs) const { return wait_ && nowMs - at_ < kGapMs; }
+
+bool TelegramRetry::failed(uint8_t bit, uint32_t nowMs) {
+  if (bit != bit_) {  // otro aviso: su propia cuenta
+    bit_ = bit;
+    tries_ = 0;
+  }
+  wait_ = true;
+  at_ = nowMs;
+  if (tries_ >= kMax) {
+    tries_ = 0;
+    bit_ = 0;
+    return false;
+  }
+  tries_++;
+  return true;
+}
+
+void TelegramRetry::done() {
+  bit_ = 0;
+  tries_ = 0;
+  wait_ = false;
 }
 
 bool SendLimiter::allow(uint32_t nowMs) {
@@ -148,7 +184,8 @@ bool Cooldown::take(uint32_t nowMs, uint32_t gapMs) {
   return true;
 }
 
-ListFailWatch::Action ListFailWatch::onResult(bool ok, uint32_t nowMs, bool enabled) {
+ListFailWatch::Action ListFailWatch::onResult(bool ok, uint32_t nowMs, bool enabled, bool scheduled) {
+  if (!ok && !scheduled) return kNone;  // una falla a mano no cuenta
   if (ok) {
     Action a = noticed_ && enabled ? kRecovered : kNone;
     fails_ = 0;

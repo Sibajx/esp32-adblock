@@ -22,7 +22,9 @@ Status& status();  // solo RAM: se pierde al reiniciar
 
 // POST a SIBLOCK_TELEGRAM_BASE/bot<token>/sendMessage con chat_id y text. Bloquea hasta ~8 s:
 // solo desde loop(). Valida el certificado (certs.h), no sigue redirecciones y no lee lo que
-// contesta Telegram. Nunca imprime el token. Devuelve el código HTTP (<= 0: no se llegó).
+// contesta Telegram. Nunca imprime el token. Devuelve el código HTTP, o si no se llegó:
+// siblock::kTgNoNet (sin WiFi), siblock::kTgLowMem (poca RAM para TLS), siblock::kTgNoConfig (token o
+// chat guardados que faltan o no valen) u otro <= 0 de HTTPClient (sin conexión, tiempo agotado).
 int send(const std::string& text);
 
 // Por qué arrancó la placa (esp_reset_reason) en palabras simples; updated: cambió la versión.

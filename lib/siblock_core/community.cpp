@@ -9,7 +9,6 @@ namespace siblock {
 namespace {
 constexpr size_t kMaxString = 253;  // un dominio válido no pasa de aquí
 constexpr size_t kMaxScalar = 32;   // números y true/false/null
-constexpr size_t kFileHeader = 16;
 
 bool isSpace(char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r'; }
 bool isDigit(char c) { return c >= '0' && c <= '9'; }
@@ -25,22 +24,46 @@ void put64(std::string& out, uint64_t v) {
 }
 uint32_t get32(const uint8_t* p) { return uint32_t(p[0]) | uint32_t(p[1]) << 8 | uint32_t(p[2]) << 16 | uint32_t(p[3]) << 24; }
 uint64_t get64(const uint8_t* p) { return uint64_t(get32(p)) | uint64_t(get32(p + 4)) << 32; }
+
+uint64_t rotl(uint64_t x, int b) { return (x << b) | (x >> (64 - b)); }
+
+void sipRound(uint64_t& v0, uint64_t& v1, uint64_t& v2, uint64_t& v3) {
+  v0 += v1; v1 = rotl(v1, 13); v1 ^= v0; v0 = rotl(v0, 32);
+  v2 += v3; v3 = rotl(v3, 16); v3 ^= v2;
+  v0 += v3; v3 = rotl(v3, 21); v3 ^= v0;
+  v2 += v1; v1 = rotl(v1, 17); v1 ^= v2; v2 = rotl(v2, 32);
+}
 }  // namespace
 
-uint64_t communityHash(const char* p, size_t n) {
-  uint64_t h = 0xcbf29ce484222325ULL;
-  for (size_t i = 0; i < n; i++) {
-    h ^= uint8_t(p[i]);
-    h *= 0x100000001b3ULL;
+uint64_t sipHash24(const CommunityKey& k, const char* p, size_t n) {
+  const uint64_t k0 = get64(k.data()), k1 = get64(k.data() + 8);
+  uint64_t v0 = 0x736f6d6570736575ULL ^ k0, v1 = 0x646f72616e646f6dULL ^ k1;
+  uint64_t v2 = 0x6c7967656e657261ULL ^ k0, v3 = 0x7465646279746573ULL ^ k1;
+  const uint8_t* in = reinterpret_cast<const uint8_t*>(p);
+  size_t full = n & ~size_t(7);
+  for (size_t i = 0; i < full; i += 8) {
+    uint64_t m = get64(in + i);
+    v3 ^= m;
+    sipRound(v0, v1, v2, v3);
+    sipRound(v0, v1, v2, v3);
+    v0 ^= m;
   }
-  return h;
+  uint64_t b = uint64_t(n) << 56;
+  for (size_t i = full; i < n; i++) b |= uint64_t(in[i]) << (8 * (i - full));
+  v3 ^= b;
+  sipRound(v0, v1, v2, v3);
+  sipRound(v0, v1, v2, v3);
+  v0 ^= b;
+  v2 ^= 0xff;
+  for (int i = 0; i < 4; i++) sipRound(v0, v1, v2, v3);
+  return v0 ^ v1 ^ v2 ^ v3;
 }
 
-bool communityAllows(const std::vector<uint64_t>& keys, const std::string& name) {
+bool communityAllows(const CommunityKey& k, const std::vector<uint64_t>& keys, const std::string& name) {
   if (keys.empty() || name.empty()) return false;
   // El nombre y cada padre: "a.b.com", "b.com", "com".
   for (size_t i = 0; i < name.size();) {
-    if (std::binary_search(keys.begin(), keys.end(), communityHash(name.data() + i, name.size() - i))) return true;
+    if (std::binary_search(keys.begin(), keys.end(), communityHash(k, name.data() + i, name.size() - i))) return true;
     size_t dot = name.find('.', i);
     if (dot == std::string::npos) break;
     i = dot + 1;
@@ -168,7 +191,7 @@ bool CommunityParser::endString() {
     case St::kArrFirst:
     case St::kArrItem:
       if (longString_ || !validReportDomain(cur_) || keys_.size() >= kCommunityMax) return false;
-      keys_.push_back(communityHash(cur_));
+      keys_.push_back(communityHash(hashKey_, cur_));
       st_ = St::kArrAfter;
       return true;
     default:
@@ -203,6 +226,7 @@ bool CommunityParser::finish(CommunityList& out) {
   keys_.erase(std::unique(keys_.begin(), keys_.end()), keys_.end());
   out.version = version_;
   out.updated = 0;
+  out.key = hashKey_;
   out.keys = std::move(keys_);  // el parser ya no se usa después
   return true;
 }
@@ -210,27 +234,30 @@ bool CommunityParser::finish(CommunityList& out) {
 // ---------- Archivo en la flash ----------
 
 std::string encodeCommunity(const CommunityList& l) {
-  std::string out("SBC1", 4);
+  std::string out("SBC2", 4);
   put32(out, l.version);
   put32(out, l.updated);
   put32(out, uint32_t(l.keys.size()));
+  out.append(reinterpret_cast<const char*>(l.key.data()), l.key.size());
   for (uint64_t k : l.keys) put64(out, k);
   return out;
 }
 
 bool decodeCommunity(const uint8_t* p, size_t n, CommunityList& out) {
-  if (!p || n < kFileHeader || p[0] != 'S' || p[1] != 'B' || p[2] != 'C' || p[3] != '1') return false;
+  constexpr size_t kHead = kCommunityFileHeader;
+  if (!p || n < kHead || p[0] != 'S' || p[1] != 'B' || p[2] != 'C' || p[3] != '2') return false;
   uint32_t count = get32(p + 12);
-  if (count > kCommunityMax || n != kFileHeader + size_t(count) * 8) return false;
+  if (count > kCommunityMax || n != kHead + size_t(count) * 8) return false;
   std::vector<uint64_t> keys;
   keys.reserve(count);
   for (uint32_t i = 0; i < count; i++) {
-    uint64_t k = get64(p + kFileHeader + size_t(i) * 8);
+    uint64_t k = get64(p + kHead + size_t(i) * 8);
     if (!keys.empty() && k <= keys.back()) return false;  // ordenadas y sin repetir
     keys.push_back(k);
   }
   out.version = get32(p + 4);
   out.updated = get32(p + 8);
+  std::copy(p + 16, p + 32, out.key.begin());
   out.keys = std::move(keys);
   return true;
 }

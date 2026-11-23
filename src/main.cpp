@@ -43,6 +43,8 @@ static uint8_t failedTries = 0;
 static uint32_t lastTry = 0;
 static uint32_t retryDelayMs() { return kRetryMs[failedTries < 3 ? failedTries - 1 : 2]; }
 static uint8_t lowMemTries = 0;  // actualizaciones saltadas por falta de RAM seguida
+// La primera bajada al arrancar sin lista la pide la placa sola (no la persona): cuenta como automática.
+static bool bootUpdate = false;
 
 // WiFi: el arranque no espera a que conecte (así Improv por USB y el modo de configuración
 // funcionan sin WiFi). Si se cae y la reconexión automática no lo arregla, se fuerza a los 2 min.
@@ -124,8 +126,12 @@ static void watchCloud(uint32_t now) {
 // Avisos por Telegram (apagados de fábrica). Cada aviso espera su turno en telegram::status().pending
 // y sale desde aquí, uno por vuelta, con WiFi, con hora de internet (el certificado la necesita) y
 // nunca mientras se baja la lista. Topes: 20 por hora entre todos (tgLimiter) y uno de prueba cada
-// 30 s (lo cuida web.cpp). Si un envío falla no se reintenta: queda el resultado en el panel.
+// 30 s (lo cuida web.cpp). Si un envío falla por algo pasajero (poca RAM, sin conexión) vuelve a la
+// cola y se reintenta al minuto, como mucho 5 veces (tgRetry; cada intento cuenta en los 20 por
+// hora). Si falla por otra cosa no se reintenta: queda el resultado en el panel.
 static siblock::SendLimiter tgLimiter;
+static siblock::TelegramRetry tgRetry;
+static siblock::WeeklyOnce tgWeekly;
 static siblock::ListFailWatch listWatch;
 static siblock::BootCause bootCause = siblock::BootCause::kNormal;
 static uint32_t tgFailHours = 0;
@@ -144,13 +150,16 @@ static void watchTelegram(uint32_t now) {
     lastWeekCheck = now;
     if (telegramWants(settings::kTgWeekly)) {
       int32_t day = siblock::weeklySummaryDay(int64_t(time(nullptr)), family::tz());
-      if (day > 0 && uint32_t(day) != settings::telegramWeek()) {
-        settings::setTelegramWeek(uint32_t(day));
+      // La RAM (tgWeekly) se acuerda del día aunque la NVS no deje guardarlo: si no, saldría cada minuto.
+      if (tgWeekly.take(day, settings::telegramWeek())) {
+        if (!settings::setTelegramWeek(uint32_t(day))) Serial.println("[telegram] no se pudo guardar el día del resumen");
         st.pending |= telegram::kWeekly;
       }
     }
   }
-  if (!st.pending || updateRequested || blocklist.updating() || WiFi.status() != WL_CONNECTED || !clockSet()) return;
+  if (!st.pending || updateRequested || blocklist.updating() || WiFi.status() != WL_CONNECTED || !clockSet() ||
+      tgRetry.waiting(now))
+    return;
   uint8_t bit = 0;
   for (uint8_t b : {telegram::kTest, telegram::kBoot, telegram::kListFail, telegram::kListOk, telegram::kWeekly})
     if (st.pending & b) {
@@ -190,12 +199,16 @@ static void watchTelegram(uint32_t now) {
   }
   st.lastCode = code > 0 ? code : 0;
   st.lastAt = clockSet() ? uint32_t(time(nullptr)) : 0;
-  Serial.printf("[telegram] aviso: %s\n", siblock::telegramResultName(st.last));
+  bool again = siblock::telegramTransient(st.last) && tgRetry.failed(bit, millis());
+  if (again) st.pending |= bit;  // vuelve a la cola: otro intento en un minuto
+  else tgRetry.done();
+  Serial.printf("[telegram] aviso: %s%s\n", siblock::telegramResultName(st.last), again ? " (se reintenta en 1 min)" : "");
 }
 
-// Tras cada intento de bajar la lista: ¿toca avisar que falla o que ya se pudo?
-static void noteListResult(bool ok, uint32_t now) {
-  switch (listWatch.onResult(ok, now, telegramWants(settings::kTgListFail))) {
+// Tras cada intento de bajar la lista: ¿toca avisar que falla o que ya se pudo? scheduled: false si
+// lo pidió la persona con «Actualizar ahora» (sus fallas no cuentan para el aviso).
+static void noteListResult(bool ok, uint32_t now, bool scheduled) {
+  switch (listWatch.onResult(ok, now, telegramWants(settings::kTgListFail), scheduled)) {
     case siblock::ListFailWatch::kFail:
       tgFailHours = listWatch.failingHours(now);
       telegram::status().pending |= telegram::kListFail;
@@ -472,7 +485,7 @@ void setup() {
   portal::begin(&dns);
 
   // El DNS ya funciona (reenviando todo) mientras baja la primera lista.
-  if (!haveList) updateRequested = true;
+  if (!haveList) updateRequested = bootUpdate = true;
   lastRefresh = millis();
   lastProbe = millis() - kProbeEveryMs + 60000;  // la primera autoprueba, al minuto
 }
@@ -494,7 +507,9 @@ void loop() {
                  ? now - lastTry > retryDelayMs()
                  : now - lastRefresh > uint32_t(REFRESH_HOURS) * 3600UL * 1000UL;
   if ((updateRequested || due) && WiFi.status() == WL_CONNECTED) {
-    updateRequested = false;
+    // Automática: le tocaba por calendario (o es la primera al arrancar). Si no, la pidió la persona.
+    const bool scheduled = due || bootUpdate;
+    updateRequested = bootUpdate = false;
     useUpstreamForOwnDns();
     dns.clearCache();  // libera ~32 KB de RAM para la descarga
     // Sin hora no se pueden validar bien los certificados: se espera hasta 10 s a NTP y, si no
@@ -525,7 +540,7 @@ void loop() {
         Serial.println("[lista] no se pudo guardar qué listas tiene la lista nueva");
     }
     lastTry = millis();
-    noteListResult(ok, lastTry);
+    noteListResult(ok, lastTry, scheduled);
     if (ok) {
       lastRefresh = lastTry;
       failedTries = 0;

@@ -1661,8 +1661,15 @@ static void testSavings() {
 
 // ---------- Permitidos de la comunidad ----------
 
-static bool parseCommunity(const std::string& body, CommunityList& out, size_t chunk = 0) {
-  CommunityParser p;
+// Llave fija para las pruebas: 00 01 02 ... 0f (la de los vectores de SipHash).
+static CommunityKey testKey() {
+  CommunityKey k;
+  for (size_t i = 0; i < k.size(); i++) k[i] = uint8_t(i);
+  return k;
+}
+
+static bool parseCommunity(const std::string& body, CommunityList& out, size_t chunk = 0, const CommunityKey& key = testKey()) {
+  CommunityParser p(key);
   if (!chunk) chunk = body.size() ? body.size() : 1;
   for (size_t i = 0; i < body.size(); i += chunk) p.feed(body.data() + i, std::min(chunk, body.size() - i));
   return p.finish(out);
@@ -1674,14 +1681,27 @@ static bool parses(const std::string& body) {
 }
 
 static void testCommunity() {
-  // FNV-1a de 64 bits (valores conocidos).
-  CHECK(communityHash("", 0) == 0xcbf29ce484222325ULL);
-  CHECK(communityHash(std::string("a")) == 0xaf63dc4c8601ec8cULL);
+  // SipHash-2-4: vectores del artículo original (llave 00..0f, mensaje 00 01 02 ... de n bytes).
+  const CommunityKey K = testKey();
+  {
+    char msg[64];
+    for (int i = 0; i < 64; i++) msg[i] = char(i);
+    CHECK(sipHash24(K, msg, 0) == 0x726fdb47dd0e0e31ULL);
+    CHECK(sipHash24(K, msg, 1) == 0x74f839c593dc67fdULL);
+    CHECK(sipHash24(K, msg, 7) == 0xab0200f58b01d137ULL);
+    CHECK(sipHash24(K, msg, 8) == 0x93f5f5799a932462ULL);
+    CHECK(sipHash24(K, msg, 15) == 0xa129ca6149be45e5ULL);
+    CHECK(sipHash24(K, msg, 63) == 0x958a324ceb064572ULL);
+  }
+  // Con otra llave, otra huella: la de una placa no sirve para buscar choques en otra.
+  CommunityKey K2 = K;
+  K2[0] ^= 1;
+  CHECK(communityHash(K, std::string("a.ejemplo.com")) != communityHash(K2, std::string("a.ejemplo.com")));
 
   CommunityList l;
   const std::string ok = "{\"version\": 7, \"dominios\": [\"b.ejemplo.com\", \"a.ejemplo.com\", \"b.ejemplo.com\"]}";
   CHECK(parseCommunity(ok, l));
-  CHECK(l.version == 7 && l.updated == 0);
+  CHECK(l.version == 7 && l.updated == 0 && l.key == K);
   CHECK(l.keys.size() == 2);  // sin repetir
   CHECK(std::is_sorted(l.keys.begin(), l.keys.end()));
   // De a un byte (como llega por la red) da lo mismo.
@@ -1691,13 +1711,17 @@ static void testCommunity() {
   CHECK(parseCommunity(ok, l3, 3) && l3.keys == l.keys);
 
   // Dominio y subdominios, como «Permitir»; el padre y los parecidos no.
-  CHECK(communityAllows(l.keys, "a.ejemplo.com"));
-  CHECK(communityAllows(l.keys, "x.y.a.ejemplo.com"));
-  CHECK(!communityAllows(l.keys, "ejemplo.com"));
-  CHECK(!communityAllows(l.keys, "aa.ejemplo.com"));
-  CHECK(!communityAllows(l.keys, "a.ejemplo.com.mx"));
-  CHECK(!communityAllows(l.keys, ""));
-  CHECK(!communityAllows(std::vector<uint64_t>(), "a.ejemplo.com"));
+  CHECK(communityAllows(K, l.keys, "a.ejemplo.com"));
+  CHECK(communityAllows(K, l.keys, "x.y.a.ejemplo.com"));
+  CHECK(!communityAllows(K, l.keys, "ejemplo.com"));
+  CHECK(!communityAllows(K, l.keys, "aa.ejemplo.com"));
+  CHECK(!communityAllows(K, l.keys, "a.ejemplo.com.mx"));
+  CHECK(!communityAllows(K, l.keys, ""));
+  CHECK(!communityAllows(K, std::vector<uint64_t>(), "a.ejemplo.com"));
+  // Las huellas solo valen con su llave.
+  CHECK(!communityAllows(K2, l.keys, "a.ejemplo.com"));
+  CommunityList otra;
+  CHECK(parseCommunity(ok, otra, 0, K2) && otra.key == K2 && otra.keys != l.keys && communityAllows(K2, otra.keys, "a.ejemplo.com"));
 
   // Vacía, con espacios y saltos, con claves de más (se saltan) y en otro orden.
   CHECK(parseCommunity("{\"version\":0,\"dominios\":[]}", l) && l.version == 0 && l.keys.empty());
@@ -1763,7 +1787,7 @@ static void testCommunity() {
   CHECK(grande.size() == kCommunityMaxBody && parses(grande));
   CHECK(!parses(" " + grande));  // un byte más del tope
   // Lo que se lee después de un error no lo arregla.
-  CommunityParser p;
+  CommunityParser p(K);
   CHECK(!p.feed("{x", 2));
   CHECK(!p.feed("\"version\":1,\"dominios\":[]}", 26));
   CHECK(!p.finish(l));
@@ -1773,19 +1797,22 @@ static void testCommunity() {
   CHECK(parseCommunity(lista(3), a));
   a.updated = 1764000000u;
   std::string f = encodeCommunity(a);
-  CHECK(f.size() == 16 + 3 * 8 && f.compare(0, 4, "SBC1") == 0);
+  CHECK(f.size() == 32 + 3 * 8 && f.compare(0, 4, "SBC2") == 0);
+  CHECK(f.compare(16, 16, std::string(reinterpret_cast<const char*>(K.data()), 16)) == 0);  // la llave va en la cabecera
   CommunityList b;
   CHECK(decodeCommunity(reinterpret_cast<const uint8_t*>(f.data()), f.size(), b));
-  CHECK(b.version == 3 && b.updated == 1764000000u && b.keys == a.keys);
+  CHECK(b.version == 3 && b.updated == 1764000000u && b.keys == a.keys && b.key == K);
+  CHECK(communityAllows(b.key, b.keys, "s1.ejemplo.com"));
   CommunityList vacia;
   std::string fv = encodeCommunity(vacia);
-  CHECK(fv.size() == 16 && decodeCommunity(reinterpret_cast<const uint8_t*>(fv.data()), fv.size(), b) && b.keys.empty());
+  CHECK(fv.size() == 32 && decodeCommunity(reinterpret_cast<const uint8_t*>(fv.data()), fv.size(), b) && b.keys.empty());
   auto roto = [&](std::string g) { CommunityList x; return !decodeCommunity(reinterpret_cast<const uint8_t*>(g.data()), g.size(), x); };
   CHECK(roto(f.substr(0, f.size() - 1)));       // cortado
   CHECK(roto(f + "x"));                          // de más
-  { std::string g = f; g[3] = '2'; CHECK(roto(g)); }  // otra cabecera
-  { std::string g = f; std::swap_ranges(g.begin() + 16, g.begin() + 24, g.begin() + 24); CHECK(roto(g)); }  // desordenado
-  { std::string g = f; g.replace(24, 8, g.substr(16, 8)); CHECK(roto(g)); }  // repetido
+  { std::string g = f; g[3] = '1'; CHECK(roto(g)); }  // SBC1: huellas viejas sin llave
+  { std::string g = f; g[3] = '3'; CHECK(roto(g)); }  // otra cabecera
+  { std::string g = f; std::swap_ranges(g.begin() + 32, g.begin() + 40, g.begin() + 40); CHECK(roto(g)); }  // desordenado
+  { std::string g = f; g.replace(40, 8, g.substr(32, 8)); CHECK(roto(g)); }  // repetido
   { CommunityList big; big.keys.resize(kCommunityMax + 1); for (size_t i = 0; i < big.keys.size(); i++) big.keys[i] = i;
     CHECK(roto(encodeCommunity(big))); }
   CHECK(!decodeCommunity(nullptr, 0, b));
@@ -1910,6 +1937,45 @@ static void testNotify() {
   CHECK(std::string(telegramResultName(TelegramResult::kNever)) == "never");
   CHECK(std::string(telegramResultName(TelegramResult::kNoNet)) == "sin_internet");
   CHECK(std::string(telegramResultName(TelegramResult::kBlocked)) == "bloqueado");
+  // Poca RAM y datos guardados que no valen tienen su propio nombre (no «sin_internet»).
+  CHECK(telegramResultFor(kTgLowMem) == TelegramResult::kLowMem && telegramResultFor(kTgNoConfig) == TelegramResult::kNoConfig);
+  CHECK(telegramResultFor(kTgNoNet) == TelegramResult::kNoNet && telegramResultFor(-11) == TelegramResult::kNoNet);
+  CHECK(std::string(telegramResultName(TelegramResult::kLowMem)) == "poca_ram");
+  CHECK(std::string(telegramResultName(TelegramResult::kNoConfig)) == "sin_datos");
+  CHECK(telegramTransient(TelegramResult::kNoNet) && telegramTransient(TelegramResult::kLowMem));
+  for (TelegramResult r : {TelegramResult::kOk, TelegramResult::kToken, TelegramResult::kChat, TelegramResult::kBlocked,
+                           TelegramResult::kLimit, TelegramResult::kRejected, TelegramResult::kNoConfig})
+    CHECK(!telegramTransient(r));
+
+  {  // Reintentos: uno por minuto, como mucho kMax por aviso.
+    TelegramRetry r;
+    CHECK(!r.waiting(0));
+    uint32_t t = 0xFFFFFFFFu - 30000;  // también cuando millis() da la vuelta
+    for (uint8_t i = 0; i < TelegramRetry::kMax; i++) {
+      CHECK(r.failed(4, t));
+      CHECK(r.waiting(t + TelegramRetry::kGapMs - 1));
+      t += TelegramRetry::kGapMs;
+      CHECK(!r.waiting(t));
+    }
+    CHECK(!r.failed(4, t));  // el sexto: se deja
+    CHECK(r.failed(4, t + 1));  // si vuelve a pedirse, empieza de nuevo
+    // Otro aviso tiene su propia cuenta; salir bien la pone en cero y no hace esperar.
+    CHECK(r.failed(16, t + 2) && r.failed(16, t + 3));
+    r.done();
+    CHECK(!r.waiting(t + 4));
+    for (uint8_t i = 0; i < TelegramRetry::kMax; i++) CHECK(r.failed(16, t + 10 + i));
+    CHECK(!r.failed(16, t + 20));
+  }
+  {  // Resumen semanal: una vez por día aunque la NVS no guarde (stored se queda en 0).
+    WeeklyOnce w;
+    CHECK(!w.take(-1, 0));
+    CHECK(w.take(20000, 0));
+    for (int i = 0; i < 300; i++) CHECK(!w.take(20000, 0));  // cada minuto de 20:00 a 23:59
+    CHECK(!w.take(20007, 20007));  // ya guardado en la NVS (tras reiniciar)
+    CHECK(w.take(20014, 20007));
+    WeeklyOnce w2;  // tras reiniciar, la NVS manda
+    CHECK(!w2.take(20000, 20000));
+  }
 
   // Tope de 20 por hora, también cuando millis() da la vuelta.
   for (uint32_t base : {0u, 0xFFFFFFFFu - 1800000u}) {
@@ -1956,6 +2022,18 @@ static void testNotify() {
     for (int i = 0; i < 3; i++) w.onResult(false, uint32_t(i), false);
     CHECK(w.onResult(false, 10, true) == ListFailWatch::kFail);
     CHECK(w.onResult(true, 20, false) == ListFailWatch::kNone);  // se apagó: no dice «ya se pudo»
+  }
+  {  // «Actualizar ahora» (a mano): sus fallas no cuentan; si sale bien, sí.
+    ListFailWatch w;
+    for (int i = 0; i < 10; i++) CHECK(w.onResult(false, uint32_t(i) * 1000, true, false) == ListFailWatch::kNone);
+    CHECK(w.failingHours(3 * 3600000) == 0);  // no empezó ninguna racha
+    CHECK(w.onResult(false, 0, true) == ListFailWatch::kNone);
+    CHECK(w.onResult(false, 60000, true, false) == ListFailWatch::kNone);  // a mano en medio: no suma
+    CHECK(w.onResult(false, 120000, true) == ListFailWatch::kNone);       // segunda automática
+    CHECK(w.onResult(false, 420000, true) == ListFailWatch::kFail);       // tercera automática
+    CHECK(w.onResult(true, 500000, true, false) == ListFailWatch::kRecovered);  // a mano y bien: «ya se pudo»
+    // Y el texto nunca dice «desde hace 0 …»: con menos de un día no dice desde cuándo.
+    CHECK(listFailMessage(w.failingHours(500000), 10).find("desde hace") == std::string::npos);
   }
   {  // millis() da la vuelta en medio de la racha.
     ListFailWatch w;

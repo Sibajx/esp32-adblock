@@ -18,6 +18,7 @@ import os
 import re
 import shutil
 import socket
+import struct
 import statistics
 import subprocess
 import sys
@@ -689,6 +690,14 @@ def adelantar(f, desde_ms, horas, paso_ms=3600000):
     return t
 
 
+def fnv1a64(b):
+    """La huella vieja de los permitidos (SBC1): FNV-1a de 64 bits, sin llave."""
+    h = 0xcbf29ce484222325
+    for x in b:
+        h = ((h ^ x) * 0x100000001b3) & 0xFFFFFFFFFFFFFFFF
+    return h
+
+
 def detener(f):
     """Apaga el proceso de una placa sin borrar su flash (para volver a arrancarla)."""
     if f.proc.poll() is None:
@@ -1016,7 +1025,7 @@ def nube_borrar():
             viejo = st.get("installId", "")
             # Una lista de la comunidad ya guardada (como si se hubiera bajado).
             with open(os.path.join(f.dir, "comunidad.bin"), "wb") as fh:
-                fh.write(b"SBC1" + bytes(12))
+                fh.write(b"SBC2" + bytes(28))
             f.press(True)
             time.sleep(0.5)
             f.set_clock(11000)
@@ -1118,7 +1127,14 @@ def nube_comunidad():
             st = nube_estado(f, tok)
             check(st.get("communityCount") == 2 and st.get("communityUpdated", 0) > 1700000000,
                   f"communityCount=2 y communityUpdated con la hora ({st.get('communityCount')}, {st.get('communityUpdated')})")
-            check(os.path.getsize(os.path.join(f.dir, "comunidad.bin")) == 16 + 2 * 8, "/comunidad.bin con 2 huellas")
+            ruta_com = os.path.join(f.dir, "comunidad.bin")
+            check(os.path.getsize(ruta_com) == 32 + 2 * 8, "/comunidad.bin con 2 huellas")
+            with open(ruta_com, "rb") as fh:
+                guardado = fh.read()
+            llave1 = guardado[16:32]
+            check(guardado[:4] == b"SBC2" and llave1 != bytes(16), "cabecera SBC2 con una llave al azar")
+            # Sin llave (FNV-1a, igual en todas las placas) la huella de doubleclick.net sería esta: no está.
+            check(struct.pack("<Q", fnv1a64(b"doubleclick.net")) not in guardado[32:], "las huellas llevan llave (no son FNV-1a)")
             reglas = json.loads(f.http("GET", "/api/rules", token=tok)[1])
             check(reglas == {"blocked": [], "allowed": []}, f"no aparecen en «Mis reglas» ({reglas})")
             code, texto, _ = f.http("GET", "/api/backup", token=tok)
@@ -1146,6 +1162,19 @@ def nube_comunidad():
             # Sobrevive a un reinicio (aunque la nube no conteste).
             nube.respuestas["/api/v1/permitidos"] = (500, '{"error":"interno"}')
             detener(f)
+            # Un /comunidad.bin viejo (SBC1, huellas FNV-1a sin llave) no se lee: hay que bajarla otra vez.
+            with open(ruta_com, "rb") as fh:
+                bueno = fh.read()
+            check(bueno[16:32] == llave1, "la lista mala no cambió la llave guardada")
+            viejo = sorted(fnv1a64(d.encode()) for d in lista["dominios"])
+            with open(ruta_com, "wb") as fh:
+                fh.write(b"SBC1" + struct.pack("<III", 3, 0, len(viejo)) + b"".join(struct.pack("<Q", k) for k in viejo))
+            with Fresh(dir=f.dir, env=env) as h:
+                check(bloqueado(h), "con un /comunidad.bin SBC1 no hay permitidos: doubleclick.net sigue bloqueado")
+                check(nube_estado(h, entrar(h, "clave-comunidad-1")).get("communityCount") == 0, "communityCount=0 con SBC1")
+                detener(h)
+            with open(ruta_com, "wb") as fh:
+                fh.write(bueno)
             with Fresh(dir=f.dir, env=env) as g:
                 check(pasa(g), "tras reiniciar, la lista guardada se usa enseguida")
                 tok = entrar(g, "clave-comunidad-1")
@@ -1289,20 +1318,24 @@ def nube_telegram():
             _, t, st = tg_probar(f, tok, t)
             check(st.get("last") == "ok" and len(tg_envios(tg)) == 21, f"una hora después vuelve a salir ({st.get('last')})")
 
-            # Encender y la lista que no se puede bajar (SIM_HTTP_FAIL): aviso a la tercera falla seguida.
+            # Encender y la lista que no se puede bajar (SIM_HTTP_FAIL): ya lleva 25 h fallando (más de
+            # 3 fallas seguidas), así que avisa en el próximo intento automático.
             code, body, _ = f.http("POST", "/api/telegram", {"on": "1"}, token=tok)
             check(code == 200 and json.loads(body).get("on") is True and f.nvs().get("tg_on") == "1",
                   f"on=1 -> 200 ({code})")
             antes = len(tg_envios(tg))
-            check(f.http("POST", "/api/update", token=tok)[0] == 202, "pedir bajar la lista")
-            esperar(lambda: f.stats().get("error"), 10)
-            for paso in (61000, 5 * 60000 + 1000):
-                time.sleep(1)
-                t += paso
-                f.set_clock(t)
             avisos = lambda: [tg_campos(p).get("text", "") for p in tg_envios(tg)[antes:]]
+            # «Actualizar ahora» que falla no cuenta para el aviso (ni pulsándolo varias veces).
+            for _ in range(3):
+                check(f.http("POST", "/api/update", token=tok)[0] == 202, "pedir bajar la lista a mano")
+                time.sleep(2)
+            check(not any("no pudo actualizar la lista" in x for x in avisos()),
+                  f"las fallas de «Actualizar ahora» no avisan ({avisos()})")
+            t += 30 * 60000 + 1000  # el próximo intento automático
+            f.set_clock(t)
             check(esperar(lambda: any("no pudo actualizar la lista" in x for x in avisos()), 15),
-                  f"a la tercera falla avisa que la lista no se pudo actualizar ({avisos()})")
+                  f"el intento automático avisa que la lista no se pudo actualizar ({avisos()})")
+            check(all("desde hace 0" not in x for x in avisos()), f"nunca dice «desde hace 0» ({avisos()})")
             n = len(tg_envios(tg))
             t += 30 * 60000 + 1000
             f.set_clock(t)
@@ -1396,12 +1429,29 @@ def nube_telegram():
         tok = crear_clave(h, "clave-telegram-2")
         check(h.http("POST", "/api/telegram", {"token": TG_TOKEN, "chat": TG_CHAT}, token=tok)[0] == 200,
               "token y chat guardados")
-        _, _, st = tg_probar(h, tok, 0)
-        salida = h.output()
-        check(b"[sim] telegram POST /bot<oculto>/sendMessage (sin SIM_TELEGRAM_URL: no sale)" in salida,
-              "sin SIM_TELEGRAM_URL: se anota y no sale")
+        marca = b"[sim] telegram POST /bot<oculto>/sendMessage (sin SIM_TELEGRAM_URL: no sale)"
+        t = 31000
+        h.set_clock(t)
+        check(h.http("POST", "/api/telegram/test", token=tok)[0] == 202, "pide la prueba -> 202")
+        check(esperar(lambda: h.output().count(marca) == 1), "sin SIM_TELEGRAM_URL: se anota y no sale")
+        st = tg_estado(h, tok)[0]
         check(st.get("last") == "sin_internet", f"el panel dice sin_internet ({st.get('last')})")
-        salidas.append(salida)
+        # Falla pasajera: la prueba vuelve a la cola y se reintenta al minuto, como mucho 5 veces.
+        check(st.get("pending") is True, f"y sigue en la cola para reintentar ({st})")
+        time.sleep(1.5)
+        check(h.output().count(marca) == 1, "no se reintenta antes del minuto")
+        for i in range(5):
+            t += 61000
+            h.set_clock(t)
+            check(esperar(lambda: h.output().count(marca) == i + 2), f"reintento {i + 1} al minuto")
+        t += 61000
+        h.set_clock(t)
+        time.sleep(1.5)
+        st = tg_estado(h, tok)[0]
+        check(h.output().count(marca) == 6 and st.get("pending") is False,
+              f"tras 5 reintentos se deja ({h.output().count(marca)} intentos, {st})")
+        check(b"(se reintenta en 1 min)" in h.output(), "el registro dice que se reintenta")
+        salidas.append(h.output())
 
     # El token no aparece en ningún registro (las placas de esta sección y sim/sim.log).
     log = os.path.join(HERE, "sim.log")

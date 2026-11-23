@@ -83,8 +83,9 @@ static const char* const ALLOWLIST[] = {
 
 // Avisos por Telegram al dueño, con SU propio bot (apagados de fábrica). Mandan textos cortos con
 // números y estados (nunca IPs, MACs, nombres de aparatos ni sitios visitados) a
-// SIBLOCK_TELEGRAM_BASE "/bot<token>/sendMessage". El token y el chat no salen nunca por el panel,
-// la serie ni el respaldo. "Borrar la configuración" los borra.
+// SIBLOCK_TELEGRAM_BASE "/bot<token>/sendMessage". El token no sale nunca por el panel, la serie ni
+// el respaldo; el chat solo lo devuelve GET /api/telegram (con sesión) y no va en el respaldo.
+// "Borrar la configuración" los borra.
 #define SIBLOCK_TELEGRAM_BASE "https://api.telegram.org"
 // Token del bot (texto, lo da @BotFather). Solo se escribe desde el panel; ninguna ruta lo devuelve.
 #define NVS_TG_TOKEN "tg_token"

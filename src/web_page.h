@@ -203,7 +203,7 @@ let pwSet=true,setupOk=false;
 function showAuth(){$('setup').hidden=!!tk||pwSet||!setupOk;$('closed').hidden=!!tk||pwSet||setupOk;$('login').hidden=!!tk||!pwSet;$('admin').hidden=!tk;$('priv').hidden=!tk}
 const b64=s=>btoa(String.fromCharCode(...new TextEncoder().encode(s)));
 const bytes=s=>new TextEncoder().encode(s).length;
-function login(j){tk=j.token;try{sessionStorage.setItem('tk',tk)}catch(e){};showAuth();tick();rules();backup();options();cargaNube();cargaTg();loadHist();prepDiag();loadDevs().then(loadSched)}
+function login(j){tk=j.token;try{sessionStorage.setItem('tk',tk)}catch(e){};tgSucio=false;showAuth();tick();rules();backup();options();cargaNube();cargaTg();loadHist();prepDiag();loadDevs().then(loadSched)}
 $('go').onclick=async()=>{const pw=$('pw').value;$('pw').value='';
  try{login(await call('/api/login',{method:'POST',headers:{'X-Requested-With':'adblock','Authorization':'Basic '+b64('admin:'+pw)}}));$('lmsg').textContent=''}
  catch(e){$('lmsg').textContent=e.message}};
@@ -436,20 +436,21 @@ async function loadHist(){if(!tk)return;try{hist=await get('/api/history');draw(
  const ol=$('top');if(ol.querySelector('.nb select:enabled'))return;ol.replaceChildren(...(hist.top.length?hist.top.map(t=>{const li=el('li'),x=el('button','x','No debió bloquearse');li.style.flexWrap='wrap';x.onclick=()=>noDebio(li,t.d);li.append(el('span','d',t.d),el('span','n2',fmt(t.n)),x);return li}):[el('li','l','Todavía nada bloqueado.')]))}catch(e){}}
 
 // ---- Compartir con SiBlock (apagado de fábrica): opciones, aviso de versión y reportes
-const NUBE='https://siblock.s-dev.win/';let nube=null;
+const NUBE='https://siblock.s-dev.win/';let nube=null,nubeOcupado=0;
 const NMSG={sin_internet:'SiBlock no pudo llegar a internet. Prueba más tarde.',limite:'Mandaste muchos seguidos. Espera un minuto.',
  rechazado:'No se pudo guardar. Prueba más tarde.',apagado:'Primero activa «Compartir datos anónimos».',
  ocupado:'Espera a que termine el envío anterior.',datos:'Revisa lo que elegiste.',guardar:'No se pudo guardar; prueba otra vez.'};
 const nerr=e=>NMSG[e.message]||e.message;
-function pintaNube(){if(!nube)return;$('share').checked=!!nube.share;$('vchk').checked=!!nube.versionCheck;$('com').checked=!!nube.community;
+// Mientras se guarda una opción no se repintan las casillas: la consulta de cada minuto no deshace el toque.
+function pintaNube(){if(!nube)return;if(!nubeOcupado){$('share').checked=!!nube.share;$('vchk').checked=!!nube.versionCheck;$('com').checked=!!nube.community}
  const cu=nube.communityUpdated>0?' · revisada el '+new Date(nube.communityUpdated*1000).toLocaleDateString():'';$('comst').hidden=!nube.community;
  $('comst').textContent=!nube.community?'':nube.communityUpdated||nube.communityCount?'Sitios permitidos por la comunidad: '+fmt(nube.communityCount|0)+cu:'Todavía no se bajó la lista: tarda un par de minutos.';
  $('upd').hidden=!nube.update;$('updv').textContent=nube.latest||'';
  if(/^[0-9a-f]{32}$/.test(nube.installId||''))$('rep').href=NUBE+'reporte.html#i='+nube.installId}
 async function cargaNube(){if(!tk)return;try{nube=await get('/api/cloud');pintaNube()}catch(e){}}
-async function opcionNube(campo,c){const on=c.checked;$('nmsg').textContent='';
- try{nube=await post('/api/cloud',{[campo]:on?'1':'0'});pintaNube();$('nmsg').textContent='Listo: guardado.'}
- catch(e){c.checked=!on;$('nmsg').textContent=nerr(e)}}
+async function opcionNube(campo,c){const on=c.checked;$('nmsg').textContent='';nubeOcupado++;
+ try{const r=await post('/api/cloud',{[campo]:on?'1':'0'});nubeOcupado--;nube=r;pintaNube();$('nmsg').textContent='Listo: guardado.'}
+ catch(e){nubeOcupado--;c.checked=!on;$('nmsg').textContent=nerr(e)}}
 $('share').onchange=()=>opcionNube('share',$('share'));$('vchk').onchange=()=>opcionNube('versionCheck',$('vchk'));$('com').onchange=()=>opcionNube('community',$('com'));
 $('msend').onclick=async()=>{const b=$('msend'),m=$('mmsg');m.textContent='';
  if(!nube||!nube.share){m.textContent=NMSG.apagado;return}
@@ -467,23 +468,29 @@ function noDebio(li,d){if(li.querySelector('.nb'))return;const box=el('div','nb'
   catch(e){m.textContent=nerr(e);ok.disabled=false}};
  box.append(sel,ok,no,m);li.append(box)}
 // ---- Avisos por Telegram (apagado de fábrica). El token nunca vuelve de la placa: solo «guardado: sí/no».
-let tg=null;
+// tgSucio: hay cambios sin guardar en la tarjeta (casillas, token o chat); tgOcupado: se está
+// guardando «Mandarme avisos». Así la consulta de cada minuto no borra lo que la persona está eligiendo.
+let tg=null,tgSucio=false,tgOcupado=0;
 const TGM={token:'Ese token no parece de un bot de Telegram. Cópialo entero de @BotFather.',chat:'El número de chat son solo cifras (puede empezar con -).',
  falta_token:'Primero guarda el token del bot.',falta_chat:'Primero guarda tu número de chat.',falta:'Primero guarda el token y el número de chat.',
  espera:'Espera 30 segundos entre una prueba y otra.',datos:'Revisa lo que elegiste.',guardar:'No se pudo guardar; prueba otra vez.'};
 const TGL={ok:'El último mensaje llegó bien a Telegram.',token:'Telegram dice que el token no es válido. Revisa el token o crea otro con @BotFather.',
  chat:'Telegram no encontró ese chat. Revisa el número de chat.',bloqueado:'Telegram no deja que tu bot te escriba: abre el chat con tu bot y pulsa «Iniciar».',
- limite:'Se mandaron muchos avisos seguidos; espera un rato.',sin_internet:'SiBlock no pudo llegar a Telegram (sin internet).',rechazado:'Telegram no aceptó el mensaje.'};
-function pintaTg(){if(!tg)return;$('tgon').checked=!!tg.on;$('tgr').checked=!!tg.reboot;$('tgl').checked=!!tg.listFail;$('tgw').checked=!!tg.weekly;
- if(document.activeElement!==$('tgchat'))$('tgchat').value=tg.chat||'';
+ limite:'Se mandaron muchos avisos seguidos; espera un rato.',sin_internet:'SiBlock no pudo llegar a Telegram (sin internet). Lo intenta otra vez cada minuto, hasta 5 veces.',
+ poca_ram:'SiBlock no tenía memoria libre para la conexión segura. Lo intenta otra vez cada minuto, hasta 5 veces.',
+ sin_datos:'Falta el token o el número de chat (o el guardado no vale). Vuelve a guardarlos.',rechazado:'Telegram no aceptó el mensaje.'};
+function pintaTg(){if(!tg)return;if(!tgOcupado)$('tgon').checked=!!tg.on;
+ if(!tgSucio){$('tgr').checked=!!tg.reboot;$('tgl').checked=!!tg.listFail;$('tgw').checked=!!tg.weekly;if(document.activeElement!==$('tgchat'))$('tgchat').value=tg.chat||''}
  $('tgsaved').textContent='Token guardado: '+(tg.tokenSaved?'sí':'no');$('tgdel').hidden=!tg.tokenSaved;
  $('tglast').textContent=tg.pending?'Mandando la prueba…':tg.last==='never'?'':(TGL[tg.last]||tg.last)+(tg.last!=='ok'&&tg.lastCode?' (código '+tg.lastCode+')':'')+(tg.lastAt?' · '+new Date(tg.lastAt*1000).toLocaleString():'')}
 async function cargaTg(){if(!tk)return;try{tg=await get('/api/telegram');pintaTg()}catch(e){}}
-async function guardaTg(campos,m){$('tgmsg').textContent='';
- try{tg=await post('/api/telegram',campos);pintaTg();$('tgmsg').textContent=m||'Listo: guardado.';return true}
- catch(e){$('tgmsg').textContent=TGM[e.message]||e.message;await cargaTg();return false}}
+// limpia: lo guardado incluye las casillas y el chat (botón «Guardar»): ya no hay cambios pendientes.
+async function guardaTg(campos,m,limpia){$('tgmsg').textContent='';tgOcupado++;
+ try{const r=await post('/api/telegram',campos);tgOcupado--;if(limpia)tgSucio=false;tg=r;pintaTg();$('tgmsg').textContent=m||'Listo: guardado.';return true}
+ catch(e){tgOcupado--;$('tgmsg').textContent=TGM[e.message]||e.message;await cargaTg();return false}}
+for(const i of ['tgr','tgl','tgw','tgchat','tgtok'])for(const ev of ['input','change'])$(i).addEventListener(ev,()=>{tgSucio=true});
 $('tgsave').onclick=async()=>{const c={reboot:$('tgr').checked?'1':'0',listFail:$('tgl').checked?'1':'0',weekly:$('tgw').checked?'1':'0'},t=$('tgtok').value.trim(),ch=$('tgchat').value.trim();
- if(t)c.token=t;if(ch)c.chat=ch;if(await guardaTg(c))$('tgtok').value=''};
+ if(t)c.token=t;if(ch)c.chat=ch;if(await guardaTg(c,'',true))$('tgtok').value=''};
 $('tgon').onchange=()=>guardaTg({on:$('tgon').checked?'1':'0'});
 $('tgdel').onclick=()=>guardaTg({clearToken:'1'},'Listo: token borrado. Ya no se mandan avisos.');
 $('tgtest').onclick=async()=>{const b=$('tgtest');$('tgmsg').textContent='';b.disabled=true;
