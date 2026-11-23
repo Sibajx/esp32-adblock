@@ -1,7 +1,7 @@
 import { env, waitOnExecutionContext } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { manejar } from "../src/index";
-import { LLAVE_CACHE_PERMITIDOS, MAX_PERMITIDOS } from "../src/permitidos";
+import { LLAVE_CACHE_PERMITIDOS, MAX_BYTES_PERMITIDOS, MAX_PERMITIDOS, esSufijo } from "../src/permitidos";
 import type { Deps } from "../src/tipos";
 import {
   crearLlaves, ctxPrueba, depsAccess, depsPrueba, envAccess, envPrueba, firmar, HOY, type Llaves, pedido, vaciarTablas,
@@ -144,6 +144,66 @@ describe("POST /api/v1/dueno/permitidos (aprobar)", () => {
     const r = await dueno("/api/v1/dueno/permitidos", { dominio: "a.com", relleno: "x".repeat(600) });
     expect(r.status).toBe(413);
   });
+
+  it(`tope de bytes: el JSON público no pasa de ${MAX_BYTES_PERMITIDOS} B en nombres → 409 tope`, async () => {
+    // 118 sitios de 250 letras: 118 × 253 = 29 854 B; uno más de 250 (+253) pasaría el tope.
+    const largo = (k: number) => `${String(k).padStart(3, "0")}${"a".repeat(57)}.${"b".repeat(63)}.${"c".repeat(63)}.${"d".repeat(57)}.com`;
+    expect(largo(1).length).toBe(250);
+    await env.DB.batch(Array.from({ length: 118 }, (_, k) =>
+      env.DB.prepare("INSERT INTO permitidos VALUES (?, ?)").bind(largo(k), HOY)));
+    const antes = (await lista()).l.version;
+    const r = await aprobar(largo(200));
+    expect(r.status).toBe(409);
+    expect(await r.json()).toEqual({ error: "tope" });
+    expect((await lista()).l.version).toBe(antes);
+    // Uno corto todavía cabe (29 854 + 20 ≤ 30 000), y el cuerpo público queda bajo los 32 KB.
+    expect((await aprobar("corto.ejemplo.com")).status).toBe(200);
+    const { l: pub } = await lista();
+    expect(pub.dominios).toHaveLength(119);
+    expect(JSON.stringify(pub).length).toBeLessThan(32 * 1024);
+  });
+
+  it("sufijos públicos y servicios compartidos → 400 sufijo y no guarda nada", async () => {
+    for (const s of ["com.mx", "co.uk", "gob.mx", "github.io", "blogspot.com", "amazonaws.com", "s3.amazonaws.com",
+      "cdn.cloudflare.net", "workers.dev", "com.zz", "org.ar", "edu.co", "net.pe", "gov.br"]) {
+      const r = await aprobar(s);
+      expect(r.status, s).toBe(400);
+      expect(await r.json()).toEqual({ error: "sufijo" });
+    }
+    expect(await filas()).toEqual([]);
+    // Un sitio concreto debajo de esos sí se puede aprobar.
+    for (const ok of ["tienda.com.mx", "yo.github.io", "ejemplo.com", "x.co", "comercio.mx"]) {
+      expect(esSufijo(ok), ok).toBe(false);
+      expect((await aprobar(ok)).status, ok).toBe(200);
+    }
+  });
+});
+
+describe("versión de la lista (disparadores de D1)", () => {
+  it("sube en la misma sentencia que cambia la lista, aunque falte la fila de la versión", async () => {
+    // Sin la fila (como si se hubiera perdido): aprobar la crea con 1.
+    expect((await env.DB.prepare("SELECT COUNT(*) AS n FROM permitidos_version").first<{ n: number }>())?.n).toBe(0);
+    expect((await aprobar("a.ejemplo.com")).status).toBe(200);
+    expect((await lista()).l.version).toBe(1);
+    // Un cambio hecho a mano en D1 también la sube: la versión nunca se queda atrás de los datos.
+    await env.DB.prepare("INSERT INTO permitidos VALUES ('b.ejemplo.com', 0)").run();
+    expect((await lista()).l).toEqual({ version: 2, dominios: ["a.ejemplo.com", "b.ejemplo.com"] });
+    await env.DB.prepare("DELETE FROM permitidos WHERE dominio = 'b.ejemplo.com'").run();
+    expect((await lista()).l.version).toBe(3);
+    // Reintentar una aprobación que ya entró no la vuelve a subir.
+    expect((await aprobar("a.ejemplo.com")).status).toBe(200);
+    expect((await lista()).l.version).toBe(3);
+  });
+
+  it("si la sentencia falla, ni la lista ni la versión cambian", async () => {
+    await aprobar("a.ejemplo.com");
+    // Dos filas iguales en un mismo batch: D1 deshace todo el batch.
+    await expect(env.DB.batch([
+      env.DB.prepare("INSERT INTO permitidos VALUES ('c.ejemplo.com', 0)"),
+      env.DB.prepare("INSERT INTO permitidos VALUES ('c.ejemplo.com', 0)"),
+    ])).rejects.toThrow();
+    expect((await lista()).l).toEqual({ version: 1, dominios: ["a.ejemplo.com"] });
+  });
 });
 
 describe("POST /api/v1/dueno/permitidos/quitar", () => {
@@ -184,6 +244,28 @@ describe("resumen del dueño con los permitidos", () => {
     expect(d.permitidos).toEqual([
       { dominio: "a.ejemplo.com", desde: "2026-11-21" },
       { dominio: "sin-reporte.ejemplo.com", desde: "1970-01-01" },
+    ]);
+  });
+
+  it("un subdominio de un sitio aprobado sale como cubierto (igual que en las placas)", async () => {
+    const id = (k: number) => k.toString(16).padStart(32, "0");
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO reportes_bloqueo VALUES (?, 'cdn.x.ejemplo.com', 'otro', 'panel', ?)").bind(id(1), HOY),
+      env.DB.prepare("INSERT INTO reportes_bloqueo VALUES (?, 'x.ejemplo.com', 'otro', 'panel', ?)").bind(id(2), HOY),
+      env.DB.prepare("INSERT INTO reportes_bloqueo VALUES (?, 'ox.ejemplo.com', 'otro', 'panel', ?)").bind(id(3), HOY),
+      env.DB.prepare("INSERT INTO reportes_bloqueo VALUES (?, 'ejemplo.com', 'otro', 'panel', ?)").bind(id(4), HOY),
+    ]);
+    await aprobar("x.ejemplo.com");
+    const r = await manejar(
+      pedido("/api/v1/dueno/resumen", { headers: { "Cf-Access-Jwt-Assertion": jwt } }),
+      envAccess(), ctxPrueba(), deps,
+    );
+    const d = (await r.json()) as { bloqueos: unknown[] };
+    expect(d.bloqueos).toEqual([
+      { dominio: "cdn.x.ejemplo.com", n: 1, aprobado: true, cubiertoPor: "x.ejemplo.com" },
+      { dominio: "ejemplo.com", n: 1, aprobado: false },
+      { dominio: "ox.ejemplo.com", n: 1, aprobado: false },
+      { dominio: "x.ejemplo.com", n: 1, aprobado: true },
     ]);
   });
 });

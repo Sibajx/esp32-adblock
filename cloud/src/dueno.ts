@@ -20,9 +20,14 @@ export const resumenDueno: Manejador = async (req, env, deps) => {
     env.DB.prepare("SELECT paso AS k, SUM(n) AS n FROM pasos WHERE dia >= ?1 GROUP BY paso").bind(desde),
     env.DB.prepare("SELECT tema AS k, SUM(n) AS n FROM temas WHERE dia >= ?1 GROUP BY tema").bind(desde),
     env.DB.prepare("SELECT motivo AS k, COUNT(*) AS n FROM reportes_bloqueo WHERE dia >= ?1 GROUP BY motivo").bind(desde),
+    // `cubierto`: el permitido que ya lo deja pasar (el mismo sitio o uno de sus padres, como en
+    // las placas); si hay varios, el más largo.
     env.DB.prepare(
-      `SELECT r.dominio AS dominio, COUNT(*) AS n, MAX(p.dominio IS NOT NULL) AS aprobado
-       FROM reportes_bloqueo r LEFT JOIN permitidos p ON p.dominio = r.dominio
+      `SELECT r.dominio AS dominio, COUNT(*) AS n,
+         (SELECT p.dominio FROM permitidos p
+          WHERE p.dominio = r.dominio OR substr(r.dominio, -length(p.dominio) - 1) = '.' || p.dominio
+          ORDER BY length(p.dominio) DESC LIMIT 1) AS cubierto
+       FROM reportes_bloqueo r
        GROUP BY r.dominio ORDER BY n DESC, r.dominio LIMIT ?1`,
     ).bind(MAX_BLOQUEOS),
     // "Guías que faltan": quien no encontró el menú, no sabe su fabricante o no logró cambiar el DNS.
@@ -38,10 +43,12 @@ export const resumenDueno: Manejador = async (req, env, deps) => {
     embudo: enOrden(PASOS, "paso", pasos.results as { k: string; n: number }[]),
     temas: enOrden(TEMAS, "tema", temas.results as { k: string; n: number }[]),
     motivos: enOrden(MOTIVOS, "motivo", motivos.results as { k: string; n: number }[]),
-    bloqueos: (bloqueos.results as { dominio: string; n: number; aprobado: number }[]).map((f) => ({
+    // aprobado: ya pasa en las placas. cubiertoPor: solo si lo deja pasar un padre aprobado.
+    bloqueos: (bloqueos.results as { dominio: string; n: number; cubierto: string | null }[]).map((f) => ({
       dominio: f.dominio,
       n: f.n,
-      aprobado: Number(f.aprobado) === 1,
+      aprobado: f.cubierto !== null,
+      ...(f.cubierto !== null && f.cubierto !== f.dominio ? { cubiertoPor: f.cubierto } : {}),
     })),
     guiasFaltan: guias.results,
     placasTotal: (placas.results[0] as { n: number } | undefined)?.n ?? 0,

@@ -1,4 +1,5 @@
 // Gráficas de barras en SVG (sin librerías), estadísticas públicas y panel del dueño.
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { barras, semanaCorta } from '../js/graficas.js';
@@ -282,6 +283,34 @@ test('pintarPermitidos: «Aprobar» o «Quitar» por sitio, como texto, y la lis
   assert.ok(doc.els['d-permitidos'].textContent.includes('desde el 2026-11-21'));
   quitar[1].oyentes.click();
   assert.deepEqual(pedidos.at(-1), ['c.ejemplo.com', false]);
+});
+
+test('pintarPermitidos: un subdominio de un sitio aprobado dice «cubierto por» y no tiene botón', () => {
+  const doc = docFalso(IDS_DUENO);
+  const r = normalizarResumen({
+    ...RES,
+    bloqueos: [
+      { dominio: 'cdn.x.ejemplo.com', n: 3, aprobado: true, cubiertoPor: 'x.ejemplo.com' },
+      // Un «cubiertoPor» que no es su padre no se cree: queda como aprobado normal.
+      { dominio: 'y.ejemplo.com', n: 2, aprobado: true, cubiertoPor: 'otro.com' },
+      { dominio: 'z.ejemplo.com', n: 1, aprobado: false, cubiertoPor: 'ejemplo.com' },
+    ],
+    permitidos: [{ dominio: 'x.ejemplo.com', desde: '2026-11-21' }],
+  });
+  assert.deepEqual(r.bloqueos.map((f) => f.cubiertoPor), ['x.ejemplo.com', '', '']);
+  pintarPermitidos(doc, r, () => {});
+  assert.ok(doc.els['d-revisar'].textContent.includes('3 reportes · cubierto por x.ejemplo.com'));
+  assert.deepEqual(todos(doc.els['d-revisar'], 'button').map((b) => b.attrs['aria-label']),
+    ['Quitar y.ejemplo.com de los permitidos', 'Aprobar z.ejemplo.com']);
+});
+
+test('cambiarPermitido: sufijo público → aviso en palabras simples', async () => {
+  assert.match(await cambiarPermitido('com.mx', true, async () => new Response('{"error":"sufijo"}', { status: 400 })), /sitio concreto/);
+});
+
+test('dueno.html avisa junto a «Aprobar» que se dejan pasar los subdominios', () => {
+  const html = readFileSync(new URL('../dueno.html', import.meta.url), 'utf8');
+  assert.ok(html.includes('Aprueba solo sitios concretos; esto deja pasar también sus subdominios en todas las placas.'));
 });
 
 test('pintarPermitidos: sin nada → avisos en vez de listas vacías', () => {

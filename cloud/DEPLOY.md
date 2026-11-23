@@ -44,8 +44,18 @@ Comprobar: salen `reportes_modem`, `reportes_bloqueo`, `placas`, `bloqueadas`, `
 `contacto_dia`, `respuestas_dia`, `permitidos`, `permitidos_version` (y `d1_migrations`).
 
 Si el Worker ya estaba publicado, el mismo `migrations apply --remote` suma solo las que faltan
-(p. ej. `0003_permitidos.sql`, la lista de permitidos de la comunidad). Hazlo **antes** de publicar
-el Worker nuevo: sin esas tablas, `/api/v1/permitidos` y el resumen del dueño dan 500.
+(p. ej. `0003_permitidos.sql`, la lista de permitidos de la comunidad, y
+`0004_permitidos_version.sql`, los disparadores que suben la versión de esa lista). Hazlo **antes**
+de publicar el Worker nuevo: sin esas tablas, `/api/v1/permitidos` y el resumen del dueño dan 500,
+y sin los disparadores de la 0004 el Worker nuevo aprueba y quita sin que la versión suba.
+
+Comprobar los disparadores:
+
+```sh
+npx wrangler d1 execute siblock --remote --command "SELECT name FROM sqlite_master WHERE type='trigger'"
+```
+
+Salen `permitidos_alta`, `permitidos_baja` y `permitidos_cambio`.
 
 ## 3) Email Routing (recibir en `contacto@s-dev.win`)
 

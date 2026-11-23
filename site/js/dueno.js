@@ -39,7 +39,13 @@ export function normalizarResumen(d) {
     temas: deLista(d.temas, 'tema', (v) => TEMAS.some((t) => t.id === v)),
     motivos: deLista(d.motivos, 'motivo', (v) => MOTIVOS.some((t) => t.id === v)),
     bloqueos: lista(d.bloqueos).filter((f) => typeof f.dominio === 'string' && f.dominio.length > 0 && f.dominio.length <= 253)
-      .map((f) => ({ dominio: f.dominio, n: entero(f.n), aprobado: f.aprobado === true })).sort(porN).slice(0, 50),
+      .map((f) => ({
+        dominio: f.dominio,
+        n: entero(f.n),
+        aprobado: f.aprobado === true,
+        // Lo deja pasar un padre aprobado (x.com cubre cdn.x.com): solo si de verdad es su padre.
+        cubiertoPor: f.aprobado === true && esDominio(f.cubiertoPor) && f.dominio.endsWith('.' + f.cubiertoPor) ? f.cubiertoPor : '',
+      })).sort(porN).slice(0, 50),
     guiasFaltan: deLista(d.guiasFaltan, 'fabricante', (v) => FABRICANTES.some((t) => t.id === v)),
     placasTotal: entero(d.placasTotal),
     permitidos: lista(d.permitidos).filter((f) => esDominio(f.dominio))
@@ -115,6 +121,11 @@ export function pintarPermitidos(doc, r, cambiar) {
     ul.setAttribute('class', 'lista-sitios');
     for (const f of revisar) {
       const veces = f.n === 1 ? '1 reporte' : `${numero.format(f.n)} reportes`;
+      if (f.cubiertoPor) {
+        // Ya pasa por su padre: no hace falta aprobarlo aparte (se quita desde la lista de abajo).
+        ul.appendChild(filaSitio(doc, f.dominio, `${veces} · cubierto por ${f.cubiertoPor}`, null));
+        continue;
+      }
       const b = f.aprobado
         ? boton(doc, 'Quitar', `Quitar ${f.dominio} de los permitidos`, (el) => cambiar(f.dominio, false, el))
         : boton(doc, 'Aprobar', `Aprobar ${f.dominio}`, (el) => cambiar(f.dominio, true, el));
@@ -138,7 +149,8 @@ export function pintarPermitidos(doc, r, cambiar) {
 }
 
 const MENSAJE_CAMBIO = Object.freeze({
-  tope: 'La lista ya tiene 500 sitios. Quita alguno antes de aprobar otro.',
+  tope: 'La lista ya está llena (500 sitios o 30 KB de nombres). Quita alguno antes de aprobar otro.',
+  sufijo: 'Ese nombre es de muchos sitios a la vez (como com.mx o github.io). Aprueba el sitio concreto.',
   datos: 'Ese nombre no es válido.',
   acceso: 'Tu sesión venció. Vuelve a entrar.',
 });
