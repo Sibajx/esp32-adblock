@@ -19,6 +19,7 @@
 #include "../lib/siblock_core/lists.h"
 #include "../lib/siblock_core/community.h"
 #include "../lib/siblock_core/notify.h"
+#include "../lib/siblock_core/oui.h"
 
 // family/backup usan adblock_core (sufijos, normalizeDomain); el Makefile solo enlaza
 // siblock_core, así que se compila aquí junto con la prueba.
@@ -1967,6 +1968,55 @@ static void testNotify() {
   }
 }
 
+// Prefijos reales de la lista MA-L del IEEE (bajada el 2026-11-22).
+static bool brandIs(std::initializer_list<uint8_t> b, const char* want) {
+  uint8_t mac[6] = {0, 0, 0, 0x12, 0x34, 0x56};
+  size_t i = 0;
+  for (uint8_t x : b)
+    if (i < 6) mac[i++] = x;
+  const char* got = ouiBrand(mac);
+  if (!want) return got == nullptr;
+  return got && std::strcmp(got, want) == 0;
+}
+
+static void testOui() {
+  CHECK(brandIs({0x00, 0x00, 0xF0}, "Samsung"));  // Samsung Electronics, primero de su lista
+  CHECK(brandIs({0xFC, 0xF1, 0x36}, "Samsung"));
+  CHECK(brandIs({0x00, 0x04, 0x1F}, "Consola PlayStation"));  // primero de la tabla entera
+  CHECK(brandIs({0xFC, 0xCA, 0x40}, "Consola PlayStation"));  // último de su bloque
+  CHECK(brandIs({0x00, 0x03, 0x93}, "Apple"));                // primero del bloque Apple
+  CHECK(brandIs({0xFC, 0xFC, 0x48}, "Apple"));                // último del bloque Apple
+  CHECK(brandIs({0x00, 0x09, 0xBF}, "Nintendo"));
+  CHECK(brandIs({0x00, 0x4B, 0x12}, "Aparato inteligente"));  // Espressif
+  CHECK(brandIs({0x00, 0x1B, 0xA9}, "Impresora Brother"));
+  CHECK(brandIs({0x00, 0x01, 0xE6}, "HP"));                   // "Hewlett Packard"
+  CHECK(brandIs({0x00, 0x02, 0xB3}, "Computadora"));          // Intel, primero del último bloque
+  CHECK(brandIs({0xFC, 0xF8, 0xAE}, "Computadora"));          // último de la tabla entera
+  // Sin sugerencia: chips y armadoras, HP Enterprise, prefijos que no están.
+  CHECK(brandIs({0x00, 0xE0, 0x4C}, nullptr));  // Realtek
+  CHECK(brandIs({0x00, 0x14, 0xA4}, nullptr));  // Hon Hai (Foxconn)
+  CHECK(brandIs({0x00, 0x17, 0x87}, nullptr));  // "Brother, Brother & Sons ApS" (no es la de impresoras)
+  CHECK(brandIs({0x00, 0x0B, 0x86}, nullptr));  // Hewlett Packard Enterprise
+  CHECK(brandIs({0x00, 0x00, 0x00}, nullptr));
+  CHECK(brandIs({0xFC, 0xFF, 0xFC}, nullptr));  // múltiplo de 4: no es privada ni de grupo
+
+  // Dirección privada (bit 0x02) o de grupo (bit 0x01): nunca dice marca.
+  uint8_t priv[6] = {0x02, 0, 0, 0, 0, 5}, apple[6] = {0x00, 0x03, 0x93, 1, 2, 3};
+  CHECK(macIsPrivate(priv) && ouiCode(priv) == kOuiPrivate && ouiBrand(priv) == nullptr);
+  CHECK(!macIsPrivate(apple) && ouiCode(apple) == 2 && std::strcmp(ouiLabel(ouiCode(apple)), "Apple") == 0);
+  uint8_t applePriv[6] = {0x02, 0x03, 0x93, 1, 2, 3}, appleGroup[6] = {0x01, 0x03, 0x93, 1, 2, 3};
+  CHECK(macIsPrivate(applePriv) && ouiBrand(applePriv) == nullptr);  // el prefijo de Apple con el bit privado
+  CHECK(macIsPrivate(appleGroup) && ouiCode(appleGroup) == kOuiPrivate);
+  uint8_t da[6] = {0xDA, 0xA1, 0x19, 0, 0, 1};  // así se ven las de un iPhone (x2, x6, xA, xE)
+  CHECK(macIsPrivate(da));
+  uint8_t bcast[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+  CHECK(macIsPrivate(bcast) && ouiBrand(bcast) == nullptr);
+  CHECK(ouiLabel(kOuiNone) == nullptr && ouiLabel(kOuiPrivate) == nullptr && ouiLabel(200) == nullptr);
+  CHECK(ouiLabel(1) && std::strcmp(ouiLabel(1), "Consola PlayStation") == 0);
+  // Los dos últimos bytes de la MAC no cambian la marca.
+  CHECK(brandIs({0x00, 0x03, 0x93, 0xFF, 0xFF, 0xFF}, "Apple"));
+}
+
 int main() {
   testSha256();
   testPbkdf2();
@@ -1999,6 +2049,7 @@ int main() {
   testSavings();
   testCommunity();
   testNotify();
+  testOui();
   if (fails) {
     std::printf("%d fallas de %d pruebas\n", fails, checks);
     return 1;

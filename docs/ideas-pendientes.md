@@ -6,7 +6,7 @@ Notas para armar después el plan de trabajo con agentes (ECC / superpowers). Lo
 fase 2 cubrió §2 (guía general), §2.1, §2.3, §2.5, §3, §3.2-6/7, parte de §3.3 y §3.5-7; la
 fase 3 ("Cloudflare") cubrió §2.2 (sin modelo ni OUI), §3.2-8, §3.2-10, §3.3 (página pública y
 panel del dueño) y §3.4; la fase 5 ("Extras") cubrió §3.1 (ideas 1 a 5) y §3.5 (ideas 3, 4, 5, 6
-y 9), sin la sugerencia de nombre por marca (OUI). Lo marcado ✅ está en el código; el Worker
+y 9); la sugerencia de nombre por marca (OUI) llegó después, con la lista MA-L del IEEE. Lo marcado ✅ está en el código; el Worker
 ya está publicado. La cajita 3D (§3.2-12) está en `hardware/caja/` y falta probarla con la placa
 real; el video (§3.5-2) espera a la placa. El resto sigue pendiente. Cada sección dice qué se quiere,
 por qué y qué falta decidir.
@@ -158,8 +158,9 @@ del dueño. Ver `docs/api.md` y `docs/seguridad.md`. Cambios respecto a la idea 
 - el menú es una lista genérica igual para todas las marcas (no hay menús por marca con fuente).
 
 Pendiente (fase 4):
-- [ ] **Marca del módem por la MAC (OUI)** en el panel: necesita una tabla de OUI con fuente y
-  licencia clara.
+- [ ] **Marca del módem por la MAC (OUI)** en el panel: la tabla ya está (§3.1-1,
+  `lib/siblock_core/oui.*`); falta leer la MAC de la puerta de enlace y decir "parece un módem
+  Huawei" (ojo: las etiquetas son de aparatos de casa, p. ej. Intel → «Computadora»).
 - [ ] **Modelo del módem** (columna `modelo` de la idea): no hay lista de modelos con fuente.
 - [ ] Menús por marca, cuando haya fichas con fuente (§2).
 - [ ] Publicar el Worker y probarlo con la placa (`cloud/DEPLOY.md`, `docs/pruebas.md` §3).
@@ -365,9 +366,14 @@ nuevas y la RAM al bajarlas (`docs/pruebas.md`, "Fase 5").
    Ayuda la marca por la MAC (OUI) para sugerir el nombre.
    Hecho: sección "Aparatos" del panel; 32 nombres de 1 a 32 bytes en `/familia.txt`; el aparato
    se reconoce por una huella `SHA-256(sal ‖ MAC)` sin guardar la MAC ni la IP; "borrar la
-   configuración" los borra. **Pendiente:** la sugerencia por marca (OUI) necesita una tabla con
-   fuente y licencia; los celulares con **MAC que rota** ("dirección privada") salen como aparato
-   nuevo y hay que nombrarlos otra vez (falta verificar el menú para apagarla en cada marca).
+   configuración" los borra. ✅ **Sugerencia por marca (OUI)**: a los aparatos sin nombre el panel
+   les sugiere «Samsung», «Consola PlayStation»… por el prefijo de su MAC (tabla de ~9 160
+   prefijos, ~27 KB en la flash, generada de la lista pública MA-L del IEEE con
+   `tools/gen_oui.py`; solo prefijo → marca con etiquetas propias). Nunca se pone sola; la MAC no
+   se guarda ni sale de la placa. Los de **dirección privada** dicen «Dirección privada: el celular
+   cambia su MAC; ponle nombre igual». **Pendiente:** verla con aparatos reales (`docs/pruebas.md`);
+   los celulares con **MAC que rota** salen como aparato nuevo y hay que nombrarlos otra vez (falta
+   verificar el menú para apagarla en cada marca).
 2. ✅ (fase 5) **Pausar solo un aparato**, no toda la casa, cuando a alguien no le carga una página.
    Hecho: "Pausar 1 h" / "Reanudar" por aparato (1 a 1440 min, solo en RAM); los horarios siguen
    valiendo durante la pausa.

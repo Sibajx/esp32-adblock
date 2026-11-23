@@ -16,6 +16,8 @@
 #include <memory>
 #include <new>
 
+#include "oui.h"
+
 using siblock::DeviceId;
 using siblock::Family;
 
@@ -31,6 +33,7 @@ struct CacheEntry {
   uint32_t ip;
   DeviceId id;
   bool used, ok;
+  uint8_t hint;  // siblock::ouiCode de la MAC (la MAC no se guarda)
   uint32_t checkedMs;
 };
 
@@ -212,7 +215,8 @@ void begin() {
 
 bool clockOk() { return time(nullptr) >= 1700000000; }
 
-bool idForIp(uint32_t ip, DeviceId& out) {
+bool idForIp(uint32_t ip, DeviceId& out, uint8_t* hint) {
+  if (hint) *hint = siblock::kOuiNone;
   if (!gMutex || ip == 0) return false;
   uint32_t now = millis();
   uint8_t salt[16];
@@ -221,7 +225,10 @@ bool idForIp(uint32_t ip, DeviceId& out) {
     if (!l.ok) return false;
     for (const CacheEntry& e : gCache) {
       if (e.used && e.ip == ip && now - e.checkedMs < (e.ok ? kCacheMs : kMissMs)) {
-        if (e.ok) out = e.id;
+        if (e.ok) {
+          out = e.id;
+          if (hint) *hint = e.hint;
+        }
         return e.ok;
       }
     }
@@ -230,7 +237,11 @@ bool idForIp(uint32_t ip, DeviceId& out) {
   uint8_t mac[6];
   bool found = arpLookup(ip, mac);
   DeviceId id{};
-  if (found) id = siblock::deviceIdFor(salt, mac);
+  uint8_t code = siblock::kOuiNone;
+  if (found) {
+    id = siblock::deviceIdFor(salt, mac);
+    code = siblock::ouiCode(mac);
+  }
   std::memset(mac, 0, sizeof mac);
   Lock l(pdMS_TO_TICKS(50));
   if (!l.ok) return false;
@@ -250,8 +261,11 @@ bool idForIp(uint32_t ip, DeviceId& out) {
       at = i;
     }
   }
-  gCache[at] = {ip, id, true, found, now};
-  if (found) out = id;
+  gCache[at] = {ip, id, true, found, code, now};
+  if (found) {
+    out = id;
+    if (hint) *hint = code;
+  }
   return found;
 }
 

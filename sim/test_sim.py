@@ -1907,11 +1907,51 @@ def familia_flash_falla():
         f.close()
 
 
+def sugerencia_marca():
+    print("\n20c. Sugerencia de nombre por la marca (prefijo de la MAC, placa propia)")
+    f = Fresh(nvs=SEED_WIFI)
+    try:
+        tok = crear_clave(f, "clave-de-prueba-20c")
+        # .4 trae por defecto un prefijo de Samsung; .5 uno de Sony Interactive (PlayStation);
+        # .6 uno de Realtek (chip: sin sugerencia); .2 la MAC 02:... (dirección privada).
+        with open(os.path.join(f.dir, ".arp"), "w") as fh:
+            fh.write("127.0.0.5 fc:ca:40:aa:bb:05\n127.0.0.6 00:e0:4c:aa:bb:06\n")
+        for x in (2, 4, 5, 6):
+            bloqueado_desde(f, "example.com", f"127.0.0.{x}")
+        code, body, _ = f.http("GET", "/api/devices", token=tok)
+        ap = json.loads(body) if code == 200 else {}
+        fila = {x: fila_ip(ap, f"127.0.0.{x}") or {} for x in (2, 4, 5, 6)}
+        check(fila[4].get("sugerencia") == "Samsung" and "privada" not in fila[4],
+              f"prefijo de Samsung -> sugerencia 'Samsung' ({fila[4]})")
+        check(fila[5].get("sugerencia") == "Consola PlayStation", f"prefijo de Sony Interactive -> 'Consola PlayStation' ({fila[5]})")
+        check(fila[2].get("privada") is True and "sugerencia" not in fila[2],
+              f"MAC con el bit de dirección privada -> privada:true, sin sugerencia ({fila[2]})")
+        check(len(fila[6].get("h", "")) == 16 and "sugerencia" not in fila[6] and "privada" not in fila[6],
+              f"prefijo de un fabricante de chips -> sin sugerencia ({fila[6]})")
+        bajo = body.lower()
+        macs = ("fc:f1:36", "fcf136", "fc-f1-36", "fc:ca:40", "fcca40", "00:e0:4c", "00e04c", "aa:bb", "02:00:00")
+        check(code == 200 and not any(m in bajo for m in macs) and not re.search(r"([0-9a-f]{2}[:-]){5}[0-9a-f]{2}", bajo),
+              "el JSON no lleva ninguna MAC ni parte de ella")
+        code, _, _ = f.http("POST", "/api/devices", {"action": "name", "h": fila[4].get("h", ""), "name": "Cel de papá"}, token=tok)
+        tele = fila_ip(aparatos(f, tok), "127.0.0.4") or {}
+        check(code == 200 and tele.get("n") == "Cel de papá" and "sugerencia" not in tele,
+              f"con nombre ya no trae sugerencia (nunca se pone sola) ({tele})")
+        with open(os.path.join(f.dir, "familia.txt"), "rb") as fh:
+            guardado = fh.read().decode(errors="replace").lower()
+        check("fcf136" not in guardado and "fc:f1:36" not in guardado and "samsung" not in guardado,
+              "/familia.txt no guarda la MAC ni la marca")
+        out = f.output().decode(errors="replace").lower()
+        check("fc:f1:36" not in out and "samsung" not in out, "la serie no imprime la MAC ni la marca")
+    finally:
+        f.close()
+
+
 def fase5():
     """Secciones 19 a 23 (fase 5): aparatos, horarios, listas, LED y respaldo."""
     familia_dns()
     familia_panel()
     familia_flash_falla()
+    sugerencia_marca()
     listas_elegibles()
     luz_y_ahorro()
     respaldo()

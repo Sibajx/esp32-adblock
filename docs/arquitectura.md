@@ -54,7 +54,7 @@ listas opcionales, LED, ahorro y respaldo) en [Fase 5: uso diario en casa](#fase
 | `src/community_store.*` | Permitidos de la comunidad: bajarlos, guardarlos en `/comunidad.bin` y pasárselos a `BlockList` |
 | `src/telegram.*` | Avisos por Telegram: el envío HTTPS a `api.telegram.org` con el bot del dueño, el motivo del arranque (`esp_reset_reason`) y el estado en RAM. Cuándo se manda cada aviso lo decide `main.cpp` (`watchTelegram`) |
 | `lib/adblock_core/` | Lógica pura (parser DNS, hash, índice, reglas, caché, JSON), sin Arduino |
-| `lib/siblock_core/` | Lógica pura de SiBlock, sin Arduino: SHA-256 y PBKDF2 (`siblock_crypto`), base64 y validaciones (`siblock_text`), Improv (`improv`), botón, LED, ventana de creación y política del portal (`modes`); *(fase 2)* nombres especiales (`dns_names`), historia de 168 h y top de bloqueados (`usage`), aparatos que se saltan y diagnóstico (`diagnose`); *(fase 5)* aparatos, horarios y grupos (`family`), formato del respaldo (`backup`), catálogo de listas (`lists`), LED de estado (`modes`) y ahorro (`usage`); permitidos de la comunidad (`community`) |
+| `lib/siblock_core/` | Lógica pura de SiBlock, sin Arduino: SHA-256 y PBKDF2 (`siblock_crypto`), base64 y validaciones (`siblock_text`), Improv (`improv`), botón, LED, ventana de creación y política del portal (`modes`); *(fase 2)* nombres especiales (`dns_names`), historia de 168 h y top de bloqueados (`usage`), aparatos que se saltan y diagnóstico (`diagnose`); *(fase 5)* aparatos, horarios y grupos (`family`), formato del respaldo (`backup`), catálogo de listas (`lists`), LED de estado (`modes`) y ahorro (`usage`); permitidos de la comunidad (`community`); marca sugerida por el prefijo de la MAC (`oui`, tabla generada `oui_table.h`) |
 | `lib/WebServer/` | Copia parcheada del `WebServer` de Arduino con topes (ver `CAMBIOS.md`) |
 | `sim/` | Capa falsa de Arduino/FreeRTOS para correr `src/` en Linux |
 | `site/` | Página de instalación (estática, ESP Web Tools) |
@@ -154,6 +154,7 @@ no se acaba la flash.
 | *(Fase 3)* Reportes del panel sin firma | Un secreto en el firmware | El firmware es público: el secreto no probaría nada (ver [seguridad.md](seguridad.md#reportes-del-panel-sin-firma)) |
 | *(Fase 3)* Diagnóstico y número en el fragmento (`#diag=`, `#i=`) | Que la placa mande el diagnóstico o el correo | El fragmento no llega a ningún servidor; la placa nunca manda correos |
 | *(Fase 3)* Sin modelo de módem ni OUI | Leer la página del módem o la MAC | No hay lista de modelos con fuente; queda para la fase 4 |
+| Marca sugerida por OUI con una tabla propia por marca (solo MA-L, ~27 KB) | Toda la lista del IEEE (~40 000 prefijos, más MA-M y MA-S) o un servicio en internet | Cabe en la flash, no sale nada de la casa y basta para sugerir un nombre; los fabricantes de chips y armadoras no dicen qué aparato es, así que no se sugieren |
 | Permitidos de la comunidad como huellas de 64 bits en un conjunto aparte | Sumarlos a las reglas propias | Caben 500 en 4 KB, no se mezclan con «Mis reglas» ni con el respaldo, y tu «Bloquear» gana siempre |
 | Leer la lista de la comunidad de a pedazos | Bajar el cuerpo entero (32 KB) a la RAM | Junto al TLS no siempre hay 32 KB seguidos; así basta un búfer de 256 B |
 | Avisos por Telegram con el bot de cada dueño, directo de la placa a `api.telegram.org` | Un bot de SiBlock que pase por el Worker | Así nosotros no vemos ni guardamos los mensajes ni a quién van, y no hay un token compartido que proteger |
@@ -443,6 +444,7 @@ flowchart LR
 | `lists.*` | Catálogo de listas (`kListGeneral`, `kListScam`, `kListSpanish`), `listUrls` en el orden estafas → español → general, `listsOffered` y `acceptListSize` (la regla contra listas cortadas, sacada de `BlockList` y con `allowShrink`) |
 | `modes.*` (suma) | `LedState` y `ledStateFor` / `ledOn`: fijo, parpadeo de 1 s (bajando la lista) o de 200 ms (problema) |
 | `usage.*` (suma) | `savedBytes`: bloqueadas × 30 KB (`kSavedBytesPerBlocked`, estimado sin fuente) |
+| `oui.*` (después) | `ouiCode(mac)` / `ouiBrand(mac)` / `macIsPrivate(mac)`: marca sugerida por los 3 primeros bytes de la MAC. `oui_table.h` (generada por `tools/gen_oui.py` de la lista MA-L del IEEE): etiquetas, `kStart` (dónde empieza cada marca) y `kPrefixes` (3 bytes por prefijo, ordenados dentro de cada marca; ~27 KB `const` en la flash, nada en RAM). Una búsqueda binaria por marca (36 marcas, ~9 160 prefijos) |
 
 ### Cambios en `src/`
 
@@ -451,7 +453,9 @@ flowchart LR
   (válida 5 min) y, si no está, `etharp_find_addr` por `tcpip_api_call` (en el simulador, el shim).
   `decide(ip, nombre)` sale de inmediato, sin ARP ni candado, si no hay horarios ni pausas (bandera
   atómica); si no, primero el horario y luego la pausa del aparato. Guardado atómico
-  (`/familia.new` + `rename`); las pausas solo en RAM.
+  (`/familia.new` + `rename`); las pausas solo en RAM. La caché guarda además un byte con la
+  marca sugerida (`ouiCode`), sacado en el mismo momento que la huella; `GET /api/devices` lo
+  convierte en `sugerencia` o `privada` (nunca la MAC).
 - `dns_server.cpp` (`answerLocally`): después de los nombres especiales y antes de la lista,
   `kBlockSchedule` → `0.0.0.0` (`Verdict::kBlockedSchedule`), suma en `stats.schedule` y no en
   `blocked`, la historia, el ahorro ni el top (todos esos son de anuncios y reglas); `kPaused` →

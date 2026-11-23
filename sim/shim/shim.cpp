@@ -107,7 +107,13 @@ ssize_t etharp_find_addr(struct netif*, const ip4_addr_t* ipaddr, struct eth_add
   static thread_local ip4_addr_t ip;
   const uint8_t* b = reinterpret_cast<const uint8_t*>(&ipaddr->addr);
   if (b[0] != 127 || b[1] != 0 || b[2] != 0) return -1;
+  // Por defecto 02:00:00:00:00:<x> (bit 0x02 = dirección privada, sin marca). 127.0.0.4 trae un
+  // prefijo real de Samsung (FC:F1:36, lista MA-L del IEEE) para ver la sugerencia por marca.
   uint8_t def[6] = {0x02, 0, 0, 0, 0, b[3]};
+  if (b[3] == 4) {
+    const uint8_t samsung[6] = {0xFC, 0xF1, 0x36, 0x00, 0x00, 0x04};
+    memcpy(def, samsung, 6);
+  }
   memcpy(mac.addr, def, 6);
   char want[20];
   snprintf(want, sizeof want, "127.0.0.%u", unsigned(b[3]));

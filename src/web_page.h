@@ -318,16 +318,20 @@ const tzAqui=()=>-new Date().getTimezoneOffset();
 DIAS.forEach((d,i)=>{const l=el('label','chk'),c=el('input');c.type='checkbox';c.id='hd'+i;c.checked=true;c.setAttribute('aria-label',DIASL[i]);l.append(c,el('span','',d));$('hdays').append(l)});
 async function devAct(body,ok){$('dmsg').textContent='';try{await post('/api/devices',body);if(ok)$('dmsg').textContent=ok;$('devs').querySelectorAll('.nb').forEach(b=>b.remove());await loadDevs();loadSched()}catch(e){$('dmsg').textContent=e.message}}
 function nameBox(li,d){if(li.querySelector('.nb'))return;const box=el('div','nb'),inp=el('input','grow'),ok=el('button','','Guardar'),no=el('button','','Cancelar');
- inp.value=d.n||'';inp.placeholder='Por ejemplo: Tele sala';inp.setAttribute('aria-label','Nombre del aparato');
+ inp.value=d.n||'';inp.placeholder=d.sugerencia?'Sugerencia: '+d.sugerencia:'Por ejemplo: Tele sala';inp.setAttribute('aria-label','Nombre del aparato');
  ok.onclick=()=>{const v=inp.value.trim();if(!v||bytes(v)>32){$('dmsg').textContent=v?'El nombre es muy largo: usa uno más corto (los acentos y los emoji ocupan más).':'Escribe un nombre.';return}devAct({action:'name',h:d.h,name:v},'Listo: nombre guardado.')};
- no.onclick=()=>box.remove();inp.onkeydown=e=>{if(e.key==='Enter')ok.click()};box.append(inp,ok,no);li.append(box);inp.focus()}
+ no.onclick=()=>box.remove();inp.onkeydown=e=>{if(e.key==='Enter')ok.click()};box.append(inp,ok,no);
+ if(d.sugerencia&&!d.n){const u=el('button','','Usar sugerencia');u.onclick=()=>{inp.value=d.sugerencia;inp.focus()};box.insertBefore(u,ok)}
+ li.append(box);inp.focus()}
 async function loadDevs(){if(!tk)return;try{const r=await get('/api/devices');devs=r.devices||[];devNames={};
  devs.forEach(d=>{if(d.ip&&d.n)devNames[d.ip]=d.n});$('sinhora').hidden=!!r.hora;
  const ul=$('devs');if(ul.querySelector('.nb input'))return;
  ul.replaceChildren(...(devs.length?devs.map(d=>{const li=el('li','dv'),t=el('span','d',d.n||'Aparato sin nombre');
   if(d.yo)t.append(el('span','me','Este aparato'));
   const info=[];if(d.ip)info.push(d.ip);if(d.ago>=0)info.push(fmt(d.q)+' consultas, '+fmt(d.b)+' bloqueadas');else info.push('no se ve ahora');
-  if(d.pausa>0)info.push('en pausa: quedan '+Math.ceil(d.pausa/60)+' min');t.append(el('small','',info.join(' · ')));li.append(t);
+  if(d.pausa>0)info.push('en pausa: quedan '+Math.ceil(d.pausa/60)+' min');t.append(el('small','',info.join(' · ')));
+  if(d.sugerencia)t.append(el('small','','Sugerencia por la marca: '+d.sugerencia+' (puede fallar)'));
+  else if(d.privada)t.append(el('small','','Dirección privada: el celular cambia su MAC; ponle nombre igual'));li.append(t);
   if(!d.h){li.append(el('span','l','Todavía no lo reconozco; vuelve a intentar en un minuto'));return li}
   const nb=el('button','',d.n?'Cambiar nombre':'Ponerle nombre');nb.onclick=()=>nameBox(li,d);li.append(nb);
   if(d.s>=0){const p=el('button','',d.pausa>0?'Reanudar':'Pausar 1 h');p.onclick=()=>devAct({action:'pause',h:d.h,minutes:d.pausa>0?'0':'60'});

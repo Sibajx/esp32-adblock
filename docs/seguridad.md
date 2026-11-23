@@ -383,6 +383,14 @@ Pruebas: `sim/test_sim.py` (19 a 23) y `test_host` (`testFamily`, `testBackup`).
   ni en un archivo que se comparte, y la misma MAC da otra huella en otra placa.
 - La IP de ahora, la caché de 16 IPs → huella (5 min) y las pausas por aparato viven **solo en
   RAM**.
+- **Marca sugerida** (`lib/siblock_core/oui.*`): en el mismo instante en que se saca la huella, la
+  placa mira los 3 primeros bytes de la MAC en una tabla fija de la flash y guarda en la caché de
+  RAM **solo un número** (la marca, "privada" o "no se sabe"); la MAC se borra enseguida como
+  antes. `GET /api/devices` manda la etiqueta (`"sugerencia":"Samsung"` o `"privada":true`), nunca
+  la MAC ni el prefijo; no va a la flash, al respaldo, a la nube ni a Telegram (lo comprueba la
+  sección 20c del simulador). La etiqueta es texto fijo nuestro (ASCII, sin comillas), no algo que
+  mande el aparato. La marca dice algo de quién vive en la casa, igual que los nombres: por eso
+  solo sale con sesión.
 - `GET /api/devices` pide sesión: los nombres ("Cel de mamá") y cuánto pregunta cada aparato dicen
   quién vive en la casa y cuándo usa internet.
 - Un nombre se guarda tal cual si es UTF-8 válido de 1 a 32 bytes, sin caracteres de control ni

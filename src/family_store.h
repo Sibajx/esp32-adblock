@@ -2,7 +2,8 @@
 // Une siblock::Family con la tabla ARP (lwIP), LittleFS (/familia.txt) y la tarea DNS.
 //
 // Privacidad: la MAC se usa solo un instante para sacar la huella (SHA-256 con sal); ni la MAC ni
-// la IP se guardan en la flash. La caché IP -> huella vive en RAM (16 entradas, 5 min).
+// la IP se guardan en la flash. La caché IP -> huella (y la marca sugerida, un número) vive en RAM
+// (16 entradas, 5 min).
 // Si la tabla ARP no tiene la IP, el aparato no se reconoce y no se le aplica nada (falla abierto).
 #pragma once
 #include <Arduino.h>
@@ -17,8 +18,10 @@ namespace family {
 void begin();  // lee /familia.txt; si no está o está dañado: tabla vacía y sal nueva
 
 // Huella del aparato que usa esta IP (orden de red, como uint32_t(IPAddress)). Falso si la tabla
-// ARP no la tiene.
-bool idForIp(uint32_t ip, siblock::DeviceId& out);
+// ARP no la tiene. En `hint` (si no es nullptr) deja la marca sugerida por el prefijo de la MAC
+// (siblock::ouiCode: kOuiNone, kOuiPrivate o 1..N); se calcula en RAM al leer la MAC y la MAC no
+// se guarda.
+bool idForIp(uint32_t ip, siblock::DeviceId& out, uint8_t* hint = nullptr);
 // ¿Esta huella se vio en los últimos 5 min? (en `ip` devuelve su IP de ahora). Sirve para no dejar
 // nombrar aparatos inventados.
 bool seenRecently(const siblock::DeviceId& id, uint32_t* ip = nullptr);

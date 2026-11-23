@@ -19,6 +19,7 @@
 #include "dns_names.h"
 #include "family_store.h"
 #include "lists.h"
+#include "oui.h"
 #include "portal.h"
 #include "settings.h"
 #include "siblock_crypto.h"
@@ -725,7 +726,7 @@ bool argDevice(siblock::DeviceId& id) {
 }
 
 void appendDeviceRow(String& j, bool& first, int slot, const siblock::DeviceId* id, const char* name, uint32_t ip,
-                     const ClientStat* cs, uint32_t me, uint32_t now) {
+                     const ClientStat* cs, uint32_t me, uint32_t now, uint8_t hint = siblock::kOuiNone) {
   if (!first) j += ',';
   first = false;
   j += "{\"s\":" + String(slot) + ",\"h\":\"";
@@ -738,11 +739,21 @@ void appendDeviceRow(String& j, bool& first, int slot, const siblock::DeviceId* 
        ",\"ago\":" + String(cs ? long((now - cs->lastMs) / 1000) : -1L) +
        ",\"pausa\":" + String(slot >= 0 ? family::pauseLeft(slot) : 0);
   if (ip && ip == me) j += ",\"yo\":true";
+  // Solo para aparatos sin nombre: la marca por el prefijo de la MAC (una etiqueta, nunca la MAC).
+  if (slot < 0 && id) {
+    if (hint == siblock::kOuiPrivate) {
+      j += ",\"privada\":true";
+    } else if (const char* sug = siblock::ouiLabel(hint)) {
+      j += ",\"sugerencia\":";
+      appendJsonString(j, sug);
+    }
+  }
   j += '}';
 }
 
 // Los aparatos con nombre (aunque no se vean ahora) y los que más consultan (hasta 10), con su
-// huella si la tabla ARP la da. Un aparato con nombre y una IP de ahora van en una sola fila.
+// huella si la tabla ARP la da. Un aparato con nombre y una IP de ahora van en una sola fila. Los
+// que no tienen nombre traen la marca sugerida o "privada"; la MAC nunca sale de la placa.
 void handleDevicesGet() {
   std::unique_ptr<siblock::Family> fam(new (std::nothrow) siblock::Family());
   if (!fam) return sendError(503, "Intenta otra vez en un momento");
@@ -750,8 +761,9 @@ void handleDevicesGet() {
   ClientStat cs[10];
   size_t n = gDns->topClients(cs, 10);
   siblock::DeviceId ids[10];
+  uint8_t hints[10] = {};
   bool has[10] = {}, joined[10] = {};
-  for (size_t i = 0; i < n; i++) has[i] = family::idForIp(cs[i].ip, ids[i]);
+  for (size_t i = 0; i < n; i++) has[i] = family::idForIp(cs[i].ip, ids[i], &hints[i]);
   uint32_t me = uint32_t(server.client().remoteIP()), now = millis();
   String j;
   j.reserve(2048);
@@ -774,7 +786,7 @@ void handleDevicesGet() {
     appendDeviceRow(j, first, slot, &id, fam->nameAt(slot), ip, c, me, now);
   }
   for (size_t i = 0; i < n; i++)
-    if (!joined[i]) appendDeviceRow(j, first, -1, has[i] ? &ids[i] : nullptr, nullptr, cs[i].ip, &cs[i], me, now);
+    if (!joined[i]) appendDeviceRow(j, first, -1, has[i] ? &ids[i] : nullptr, nullptr, cs[i].ip, &cs[i], me, now, hints[i]);
   j += "],\"tz\":" + String(int(fam->tz)) + ",\"hora\":" + (family::clockOk() ? "true" : "false") + "}";
   sendJson(200, j);
 }

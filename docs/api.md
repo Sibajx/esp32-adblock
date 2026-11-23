@@ -514,7 +514,9 @@ casillas para aparatos con nombre.
 ```json
 {"devices":[
   {"s":0,"h":"9d2cbeaf31115773","n":"Tele sala","ip":"192.168.1.23","q":812,"b":301,"ago":4,"pausa":0},
-  {"s":-1,"h":"","n":"","ip":"192.168.1.40","q":12,"b":3,"ago":60,"pausa":0}],
+  {"s":-1,"h":"","n":"","ip":"192.168.1.40","q":12,"b":3,"ago":60,"pausa":0},
+  {"s":-1,"h":"51c0e2a9d4b37f18","n":"","ip":"192.168.1.41","q":90,"b":20,"ago":2,"pausa":0,"sugerencia":"Samsung"},
+  {"s":-1,"h":"0a7f3b9c21de4e65","n":"","ip":"192.168.1.42","q":40,"b":9,"ago":5,"pausa":0,"privada":true}],
  "tz":-360,"hora":true}
 ```
 
@@ -527,11 +529,14 @@ casillas para aparatos con nombre.
 | `q`, `b`, `ago` | Consultas, bloqueadas y segundos desde la última consulta (los mismos de `clients` en `/api/detail`). Un aparato con nombre que no se ha visto desde que arrancó viene con `ip:""`, `q:0`, `b:0` y `ago:-1` (el panel muestra "no se ve ahora") |
 | `pausa` | Segundos que le quedan a la pausa de ese aparato (`0` = sin pausa) |
 | `yo` | `true` solo en la fila del aparato que hizo la petición (el panel muestra "Este aparato"); en las demás filas no viene |
+| `sugerencia` | *(Opcional)* Solo en aparatos **sin nombre** con huella: la marca según los 3 primeros bytes de su MAC (lista MA-L del IEEE, `lib/siblock_core/oui_table.h`), con una etiqueta propia: `"Samsung"`, `"Apple"`, `"Consola PlayStation"`, `"Aparato inteligente"`, `"Impresora Epson"`, `"Computadora"`… Es una sugerencia (puede fallar); nunca se guarda ni se pone sola. No viene si la marca no se conoce |
+| `privada` | *(Opcional)* `true` solo en aparatos **sin nombre** con huella cuya MAC es "administrada localmente" o de grupo (bit `0x02` o `0x01` del primer byte): la dirección privada de los celulares. Esas no dicen la marca, así que no traen `sugerencia` |
 | `tz` | Diferencia con UTC en minutos guardada en la placa (la manda el navegador al guardar un horario) |
 | `hora` | `true` si la placa tiene la hora de internet. Sin hora, **los horarios no bloquean** |
 
 Salen los aparatos con nombre (aunque no se vean ahora) y los 10 que más preguntan. Si un aparato
-con nombre tiene una IP de ahora, sale en una sola fila.
+con nombre tiene una IP de ahora, sale en una sola fila. **La MAC nunca sale**: ni entera ni el
+prefijo; solo la etiqueta de la marca, que se saca en RAM al leer la tabla ARP.
 
 #### `POST /api/devices` 🔒
 

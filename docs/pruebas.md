@@ -115,6 +115,15 @@ make -C test_host test       # compila con -Werror, AddressSanitizer y UBSan; co
 - `testStatusLed` (`modes.*`): `ledStateFor` (5 casos) y `ledOn` en 0, 199, 200, 999 y 1000 ms;
 - `testSavings` (`usage.*`): 168 horas con 10 bloqueadas → `168 × 10 × 30 720` bytes; vacías → 0.
 
+Marca sugerida por la MAC, `testOui` (`oui.*`, tabla de `oui_table.h`): prefijos reales de la lista
+MA-L (Samsung, Sony Interactive → «Consola PlayStation», Apple, Nintendo, Espressif → «Aparato
+inteligente», Brother, «Hewlett Packard» → HP, Intel → «Computadora»), el primero y el último de
+varios bloques (el primero y el último de la tabla entera); sin sugerencia: Realtek, Hon Hai,
+Hewlett Packard Enterprise, «Brother, Brother & Sons», `00:00:00` y un prefijo que no está; bit
+`0x02` (dirección privada, también con el prefijo de Apple) o `0x01` (grupo, `ff:ff:…`) → privada y
+sin marca; `ouiLabel` fuera de rango → nada. El generador tiene sus propias pruebas con un CSV
+chico: `python3 tools/test_gen_oui.py` (reglas, orden, excluidos, encabezado con fuente y sha256).
+
 Permitidos de la comunidad, `testCommunity` (`community.*`): FNV-1a de 64 bits contra valores
 conocidos; el JSON del Worker leído entero, de a 1 byte y de a 3 (mismo resultado, sin repetidos,
 ordenado); sitio y subdominios sí, padre y parecidos (`aa.ejemplo.com`, `a.ejemplo.com.mx`) no;
@@ -292,6 +301,11 @@ pkill -x esp32-sim                              # nunca pkill -f
 20b. *(fase 5)* con `SIM_FS_FAIL_PATH=/familia.new` (la flash no guarda): renombrar, guardar un
     horario y olvidar contestan 500 y **nada cambia** (sigue el nombre, sin horario, la hora de la
     casa igual, no bloquea);
+20c. sugerencia por la marca: `.4` (prefijo de Samsung) → `"sugerencia":"Samsung"`; `.5` con
+    `fc:ca:40:…` en `.arp` → «Consola PlayStation»; `.2` (`02:…`) → `"privada":true` sin
+    sugerencia; `.6` con un prefijo de Realtek → ninguna de las dos; el JSON no trae ninguna MAC ni
+    parte de ella; con nombre ya no trae sugerencia; `/familia.txt` y la serie no guardan ni
+    imprimen la MAC ni la marca;
 21. *(fase 5)* listas: con `lists=7` en la NVS, las líneas `[lista] 1/4 …` en el orden estafas,
     español, general ×2; `lists=2` → 400; `lists=3` → 200 y queda en la NVS; `lists=9` en la NVS
     se porta como `1`;
@@ -306,9 +320,11 @@ pkill -x esp32-sim                              # nunca pkill -f
     `linea` 0; 200 reglas largas → `GET /api/backup` da 500; pedazo de 3073 B o más de 24 KB → 413; sin sesión no escribe;
     BOOT 10 s borra `/familia.txt`.
 
-*(Fase 5)* El simulador finge la tabla ARP: la IP `127.0.0.x` tiene la MAC `02:00:00:00:00:<x>`,
-salvo que `$SIM_FLASH/.arp` (se relee en cada consulta) diga otra cosa: `127.0.0.x 02:aa:bb:cc:dd:ee`
-(otra MAC) o `127.0.0.x -` (no está en la tabla).
+*(Fase 5)* El simulador finge la tabla ARP: la IP `127.0.0.x` tiene la MAC `02:00:00:00:00:<x>`
+(con el bit de dirección privada, así que sin marca), salvo `127.0.0.4`, que trae un prefijo real
+de Samsung (`fc:f1:36:00:00:04`) para ver la sugerencia por marca, y salvo que `$SIM_FLASH/.arp`
+(se relee en cada consulta) diga otra cosa: `127.0.0.x 02:aa:bb:cc:dd:ee` (otra MAC) o
+`127.0.0.x -` (no está en la tabla).
 
 Las instancias que lanza el propio test se cierran con `terminate()`/`wait()`, nunca con `pkill`.
 
@@ -414,7 +430,8 @@ Pide un bot de prueba propio (de @BotFather) y la placa con internet.
 | Prueba | Qué mirar |
 |---|---|
 | **Tabla ARP con más de 10 aparatos** (falta verificar) | Con 15 o más aparatos usando internet a la vez, `GET /api/devices` da la huella de todos (la tabla ARP de lwIP trae 10 entradas por defecto). Si no alcanza, los que faltan salen "Todavía no lo reconozco" y no se les aplica nada |
-| Teléfono con **dirección privada** (MAC que cambia) | Al rotar sale como aparato nuevo sin nombre; nada se bloquea de más |
+| Teléfono con **dirección privada** (MAC que cambia) | Al rotar sale como aparato nuevo sin nombre; nada se bloquea de más. Sin nombre dice «Dirección privada: el celular cambia su MAC; ponle nombre igual» |
+| **Sugerencia por la marca** (falta verificar) | Con la dirección privada apagada en un celular, una tele y una consola: «Sugerencia por la marca: …» con la marca correcta; «Usar sugerencia» la escribe y hay que pulsar «Guardar». Anotar las que salgan mal (módem del proveedor, aparatos con piezas de otra marca) |
 | Pausa por aparato | "Pausar 1 h" en un celular: ese celular ve anuncios, otro aparato no |
 | Horario real | "Todo internet" para un aparato por 10 min: no abre nada en ese rato y vuelve solo; sin hora de internet (NTP bloqueado) no bloquea |
 | **LED real** | Fijo con todo bien; parpadeo lento al bajar la lista; rápido sin WiFi o con el modo de configuración; que se vea a través de la caja |

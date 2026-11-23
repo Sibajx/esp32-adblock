@@ -269,6 +269,15 @@ aparato" marca el que tiene abierto el panel.
 - **Olvidar** (pide confirmar): borra el nombre y lo saca de los horarios.
 - "Todavía no lo reconozco; vuelve a intentar en un minuto": la placa aún no ve ese aparato en su
   tabla de la red. Mientras tanto no se le aplica nada.
+- **Sugerencia por la marca**: a un aparato sin nombre le puede salir "Sugerencia por la marca:
+  Samsung (puede fallar)". Sale de los primeros 3 bytes de su MAC, que dicen quién la fabricó.
+  Al pulsar "Ponerle nombre", la sugerencia sale en gris en la casilla y el botón **Usar
+  sugerencia** la escribe; hay que pulsar **Guardar** igual (nunca se pone sola). Puede fallar: el
+  módem del proveedor suele salir como Huawei, ZTE o TP-Link, y algunos aparatos usan piezas de
+  otra marca. Las de chips y armadoras (Realtek, MediaTek, Foxconn…) no dan sugerencia.
+- "Dirección privada: el celular cambia su MAC; ponle nombre igual": ese aparato usa una MAC
+  inventada (iPhone con iOS 14 o más, Android 10 o más), así que no dice la marca. Se le puede
+  poner nombre igual; si un día la cambia, sale como aparato nuevo (abajo).
 
 Cómo lo reconoce: por la MAC que ve en la red, pero **no la guarda**. Guarda una huella hecha con
 la MAC y un número al azar propio de la placa (ver [seguridad.md](seguridad.md#aparatos-con-nombre-y-su-huella)).
@@ -277,7 +286,26 @@ cambian, SiBlock lo ve como un aparato nuevo sin nombre: ponle nombre otra vez y
 Para que no pase, en el celular se puede apagar la dirección privada **solo para el WiFi de la
 casa** (el menú cambia en cada teléfono: falta verificar por marca).
 
-Todo se guarda en `/familia.txt` (LittleFS). La pausa por aparato y las IPs viven solo en RAM.
+Todo se guarda en `/familia.txt` (LittleFS). La pausa por aparato, las IPs y la marca sugerida
+viven solo en RAM.
+
+### Regenerar la tabla de marcas
+
+La tabla está en `lib/siblock_core/oui_table.h` (unos 27 KB en la flash) y sale de la lista
+pública MA-L del IEEE. No se edita a mano. Para ponerla al día:
+
+```bash
+mkdir -p /tmp/oui && wget -U "Wget/1.21" -O /tmp/oui/oui.csv https://standards-oui.ieee.org/oui/oui.csv
+python3 -I tools/gen_oui.py /tmp/oui/oui.csv --fecha "$(date +%F)"
+python3 tools/test_gen_oui.py && make -C test_host test
+```
+
+El sitio rechaza a `curl` sin otro nombre de programa: por eso el `-U` de `wget` (o `curl -A
+"Wget/1.21"`). El CSV **no** va en el repo; el encabezado del `.h` dice de dónde salió, el día, el
+número de filas, el sha256 del CSV y cuántos prefijos hay por marca. Las marcas y sus etiquetas en
+español están en `RULES` de `tools/gen_oui.py` (gana la primera regla que coincide). Si cambian
+mucho los prefijos, revisa que las pruebas de `testOui` (`test_host/test_siblock.cpp`) sigan
+usando prefijos que existen.
 
 ## Horarios para los niños *(fase 5)*
 
