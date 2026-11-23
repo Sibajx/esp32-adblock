@@ -2174,6 +2174,22 @@ def main():
           f"apagar Private Relay -> 200 con lo que dice api.md ({code} {body})")
     check(query("mask.icloud.com").rcode() == 0, "apagado: mask.icloud.com contesta otra vez")
 
+    # DDR (RFC 9462): SiBlock no anuncia DNS cifrado; resolver.arpa nunca va al DNS de arriba.
+    s0 = stats()
+    by_ip = lambda: sorted(k for b in detail().get("bypass", []) if b.get("ip") == "127.0.0.1" for k in b.get("k", []))
+    by0 = by_ip()
+    for n, t in (("_dns.resolver.arpa", "SVCB"), ("_dns.resolver.arpa", "A"), ("resolver.arpa", "AAAA"),
+                 ("_853._dns.resolver.arpa", "SVCB")):
+        r = query(n, t)
+        check(r.rcode() == 0 and not r.answer and not r.authority,
+              f"DDR {n} {t} -> NOERROR sin respuestas (rcode {r.rcode()}, {len(r.answer)} respuestas)")
+    s1 = stats()
+    check(s1.get("forwarded") == s0.get("forwarded"), f"DDR: nada se reenvió ({s0.get('forwarded')} -> {s1.get('forwarded')})")
+    check(s1.get("blocked") == s0.get("blocked"), "DDR: no cuenta como bloqueada")
+    check(by_ip() == by0, f"DDR: no marca el aparato como que se salta SiBlock ({by0} -> {by_ip()})")
+    check(not any("resolver.arpa" in x.get("d", "") for x in detail().get("recent", [])),
+          "DDR: no sale en las últimas consultas")
+
     print("\n5c. Comprobación, diagnóstico e historia")
     def gif_get(host=None):
         h = {"Host": host} if host else {}
@@ -2219,6 +2235,36 @@ def main():
           f"otro aparato que no pregunta -> no_usa_siblock (bad) e ipv6 (info) ({f2})")
     order = {"bad": 0, "warn": 1, "info": 2, "ok": 3}
     check(lv == sorted(lv, key=order.get), f"bad antes que info ({lv})")
+
+    # Pasos según el sistema (por el User-Agent de esa petición; no se guarda ni se devuelve).
+    UA = {
+        "windows": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        "mac": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Safari/605.1.15",
+        "iphone": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1",
+        "android": "Mozilla/5.0 (Linux; Android 14; SAMSUNG SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/26.0 Chrome/122.0.0.0 Mobile Safari/537.36",
+        "otro": "Python-urllib/3",
+    }
+    esperado = {
+        "windows": ["windows_dns_cifrado", "antivirus_dns", "vpn"],
+        "mac": ["apple_perfil_dns", "vpn"],
+        "iphone": ["apple_perfil_dns", "vpn"],
+        "android": ["android_dns_privado", "vpn"],
+        "otro": ["revisar_aparato"],
+    }
+    pasos = set(c for v in esperado.values() for c in v)
+    for so, ua in UA.items():
+        code, body, _ = http("GET", "/api/diagnose?probe=fail", token=False,
+                             headers={"X-Sim-Client": "192.168.1.77", "User-Agent": ua})
+        fs = json.loads(body).get("findings", []) if code == 200 else []
+        cs = [f["code"] for f in fs]
+        extra = [c for c in cs if c in pasos]
+        check(extra == esperado[so] and all(f["level"] == "info" for f in fs if f["code"] in pasos)
+              and cs[0] == "no_usa_siblock",
+              f"{so}: no usa SiBlock -> pasos {esperado[so]} ({cs})")
+        check(ua not in body and "Mozilla" not in body, f"{so}: la respuesta no trae el User-Agent")
+        code, body, _ = http("GET", "/api/diagnose?probe=ok", token=False, headers={"User-Agent": ua})
+        cs = [f["code"] for f in json.loads(body).get("findings", [])] if code == 200 else []
+        check(not any(c in pasos for c in cs), f"{so}: si usa SiBlock no hay pasos ({cs})")
 
     def strings(o):
         if isinstance(o, dict):

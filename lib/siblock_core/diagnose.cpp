@@ -61,9 +61,47 @@ const char* levelName(DiagLevel l) {
   return "ok";
 }
 
+DeviceOs osFromUserAgent(const std::string& ua) {
+  if (ua.empty()) return DeviceOs::kNone;
+  auto has = [&ua](const char* t) { return ua.find(t) != std::string::npos; };
+  if (has("CrOS")) return DeviceOs::kChromeOs;
+  if (has("Android")) return DeviceOs::kAndroid;  // antes que Linux: Android también dice "Linux"
+  if (has("iPhone") || has("iPad") || has("iPod")) return DeviceOs::kIos;  // dicen "like Mac OS X"
+  if (has("Windows")) return DeviceOs::kWindows;
+  if (has("Macintosh") || has("Mac OS X")) return DeviceOs::kMac;
+  if (has("Linux") || has("X11")) return DeviceOs::kLinux;
+  return DeviceOs::kOther;
+}
+
+// Pasos según el sistema para un aparato que no usa SiBlock. SiBlock no ve qué programa es (el
+// DNS cifrado de Windows o un antivirus no le preguntan nada): solo dice dónde mirar.
+static void osSteps(std::vector<DiagFinding>& v, const DiagInput& in) {
+  switch (in.os) {
+    case DeviceOs::kNone:
+      return;
+    case DeviceOs::kWindows:
+      v.push_back({"windows_dns_cifrado", DiagLevel::kInfo});
+      v.push_back({"antivirus_dns", DiagLevel::kInfo});
+      v.push_back({"vpn", DiagLevel::kInfo});
+      return;
+    case DeviceOs::kMac:
+    case DeviceOs::kIos:
+      v.push_back({"apple_perfil_dns", DiagLevel::kInfo});
+      v.push_back({"vpn", DiagLevel::kInfo});
+      return;
+    case DeviceOs::kAndroid:
+      if (!(in.bypassFlags & kBypassDoh)) v.push_back({"android_dns_privado", DiagLevel::kInfo});
+      v.push_back({"vpn", DiagLevel::kInfo});
+      return;
+    default:
+      v.push_back({"revisar_aparato", DiagLevel::kInfo});
+      return;
+  }
+}
+
 std::vector<DiagFinding> diagnose(const DiagInput& in) {
   std::vector<DiagFinding> v;
-  v.reserve(12);
+  v.reserve(16);
   if (in.probe == ProbeResult::kOk) v.push_back({"usa_siblock", DiagLevel::kOk});
   if (in.probe == ProbeResult::kFail) {
     // En los dos casos va el consejo de IPv6: un aparato que alterna entre SiBlock y el DNS por
@@ -83,6 +121,7 @@ std::vector<DiagFinding> diagnose(const DiagInput& in) {
   if (!in.listLoaded) v.push_back({"sin_lista", DiagLevel::kBad});
   if (in.upstreamDown) v.push_back({"sin_internet", DiagLevel::kBad});
   if (in.viaRouter) v.push_back({"router_dns", DiagLevel::kWarn});
+  if (in.probe == ProbeResult::kFail || (in.probe == ProbeResult::kSkip && !in.clientSeen)) osSteps(v, in);
   bool trouble = false;
   for (auto& f : v) trouble = trouble || f.level >= DiagLevel::kWarn;
   if (!trouble) v.push_back({"todo_bien", DiagLevel::kOk});

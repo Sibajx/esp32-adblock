@@ -288,8 +288,14 @@ const TXT={usa_siblock:'Este aparato usa SiBlock.',
  sin_lista:'SiBlock todavía no tiene su lista de anuncios. Revisa que tenga internet y espera unos minutos.',
  sin_internet:'SiBlock no logra hablar con internet. Revisa el módem.',
  router_dns:'Todo llega desde tu módem o router: así SiBlock no ve cada aparato. Lo mejor es que reparta la dirección de SiBlock directo.',
- todo_bien:'No encontré nada raro.'};
-const LINK={navegador_dns_propio:OBST,no_usa_siblock:GUIA,ipv6:GUIA,router_dns:GUIA,dns_cifrado:OBST,private_relay:OBST};
+ todo_bien:'No encontré nada raro.',
+ windows_dns_cifrado:'Si es Windows 11, puede tener «DNS cifrado». Para revisarlo: Configuración > Red e Internet > Wi-Fi o Ethernet > tu red > Asignación de servidor DNS > Editar, y déjalo en «Automático (DHCP)» o apaga el DNS cifrado. Los nombres pueden cambiar un poco según la versión de Windows.',
+ antivirus_dns:'Si tienes antivirus, revisa si trae «DNS seguro» o «protección web» y apágalo. En Avast: Protección > Real Site > apagar. En AVG: Menú > Configuración > Componentes > Secure DNS > apagar. SiBlock no puede saber qué programa es: solo ve que este aparato no le pregunta.',
+ vpn:'Si este aparato tiene una VPN encendida (del trabajo, NordVPN u otra), usa el DNS de la VPN y se salta SiBlock. Es normal; apágala si quieres el bloqueo, salvo que sea del trabajo.',
+ apple_perfil_dns:'En iPhone o iPad, mira en Ajustes > General > VPN y administración de dispositivos si hay un perfil o una app de DNS (como 1.1.1.1 o NextDNS) y quítalo o apágalo. En Mac, escribe «Perfiles» en el buscador de Configuración del Sistema. Revisa también iCloud Private Relay en Ajustes > tu nombre > iCloud.',
+ android_dns_privado:'En Android, revisa «DNS privado»: Ajustes > Redes e internet > DNS privado, y elige «Automático» o «Desactivado». El lugar cambia según la marca: búscalo como «DNS privado» en el buscador de Ajustes.',
+ revisar_aparato:'Revisa en este aparato si hay una VPN encendida, un antivirus con «DNS seguro» o «protección web», o un DNS cifrado («DNS privado», «DNS seguro») en sus ajustes o en el navegador. Apágalo y vuelve a probar.'};
+const LINK={navegador_dns_propio:OBST,no_usa_siblock:GUIA,ipv6:GUIA,router_dns:GUIA,dns_cifrado:OBST,private_relay:OBST,windows_dns_cifrado:OBST,antivirus_dns:OBST,vpn:OBST,apple_perfil_dns:OBST,android_dns_privado:OBST,revisar_aparato:OBST};
 const ICO={bad:'⛔',warn:'⚠️',info:'ℹ️',ok:'✅'},RANK={bad:0,warn:1,info:2,ok:3};
 async function algo(){const b=$('algo'),ul=$('hallazgos');b.disabled=true;ul.replaceChildren(el('li','l','Revisando…'));
  try{const ok=await check();

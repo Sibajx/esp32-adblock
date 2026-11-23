@@ -11,6 +11,7 @@ flowchart TD
   PA --> SP{¿nombre especial?}
   SP -- prueba --> RP[A = IP de SiBlock, TTL 0]
   SP -- canario / Private Relay con la opción --> NX[NXDOMAIN]
+  SP -- resolver.arpa --> ND[NOERROR sin respuestas]
   SP -- no --> BY[anotar si es DNS cifrado o Private Relay]
   BY --> V[BlockList::check]
   V -- bloqueado --> R0[0.0.0.0 / ::]
@@ -64,7 +65,16 @@ En este orden:
    si la opción está encendida** (`relay_block` en la NVS; apagada de fábrica). Así Safari deja de
    usar Private Relay en esta red y avisa a la persona. Suma a `relay` en `/api/stats`. Con la
    opción apagada siguen el camino normal.
-4. **Detección** (no bloquea): si el nombre es de un DNS cifrado conocido, o es de Private Relay
+4. **DDR** (*Discovery of Designated Resolvers*, [RFC 9462](https://www.rfc-editor.org/rfc/rfc9462.html)):
+   `resolver.arpa` y cualquier nombre debajo (el que se usa es `_dns.resolver.arpa`, tipo `SVCB`
+   = 64) → **NOERROR sin respuestas** (NODATA, `adblock::buildNodata`) para cualquier tipo, siempre
+   (también en pausa). Con esa pregunta el iPhone (iOS 16 o más nuevo), la Mac (Ventura o más
+   nueva) y Windows (cuando tiene DDR encendido) le preguntan a su DNS si tiene una versión cifrada
+   para usarla en su lugar. SiBlock no tiene, y el RFC 9462 (§4) pide contestar NODATA. **Nunca se
+   reenvía**: el DNS de arriba (1.1.1.1, 8.8.8.8) anunciaría su propio DNS cifrado y el aparato
+   se saltaría SiBlock. No cuenta como bloqueada, no sale en "últimas consultas" y no marca al
+   aparato como que se salta SiBlock (preguntarlo es normal).
+5. **Detección** (no bloquea): si el nombre es de un DNS cifrado conocido, o es de Private Relay
    con la opción apagada, se anota la IP del aparato en la tabla de "aparatos que se saltan"
    (`siblock::BypassTable`: 16 lugares, solo en RAM, se olvidan a las 24 h, si se llena sale el
    más viejo). Después la consulta sigue a la sección 3
@@ -96,6 +106,9 @@ Respuesta "ese nombre no existe": mismo ID y la misma pregunta, QR=1, RA=1, RD c
 consulta, RCODE=3, sin respuestas y sin EDNS (aunque la consulta lo traiga). Sirve igual para `A`,
 `AAAA` y cualquier otro tipo. Se usa solo para el canario y para Private Relay; los dominios de la
 lista se siguen contestando con `0.0.0.0` / `::`.
+
+`adblock::buildNodata` es igual pero con RCODE=0 (NOERROR): "el nombre existe, pero no tiene
+datos de ese tipo". Se usa solo para `resolver.arpa`.
 
 ## 3. Veredicto (`BlockList::check`)
 

@@ -58,7 +58,8 @@ test('textoDiag: líneas para leer y adjuntar', () => {
 test('textoDiag: los avisos del panel salen en palabras simples, sin códigos', () => {
   const codigos = ['usa_siblock', 'navegador_dns_propio', 'no_usa_siblock', 'ipv6', 'sin_consultas', 'dns_cifrado',
     'private_relay', 'en_pausa', 'aparato_en_pausa', 'horario_todo', 'horario_activo', 'sin_lista', 'sin_internet',
-    'router_dns', 'todo_bien'];
+    'router_dns', 'todo_bien', 'windows_dns_cifrado', 'antivirus_dns', 'vpn', 'apple_perfil_dns',
+    'android_dns_privado', 'revisar_aparato'];
   const t = textoDiag({ codes: codigos });
   for (const c of codigos) assert.ok(!t.includes(c), `sale el código ${c}`);
   assert.ok(!t.includes('otro aviso'));

@@ -132,23 +132,26 @@ for (const pagina of TODAS) {
   });
 }
 
-test('obstaculos.html no promete detectar el antivirus (SiBlock todavía no lo reconoce)', () => {
+test('obstaculos.html no promete reconocer el antivirus: solo ve el aparato', () => {
   const html = leer('obstaculos.html');
   const fila = html.match(/<tr>\s*<th scope="row">Antivirus[\s\S]*?<\/tr>/);
   assert.ok(fila, 'falta la fila del antivirus');
   assert.doesNotMatch(fila[0], /Lo detecta/);
-  assert.match(fila[0], /Solo con guía/);
+  assert.doesNotMatch(fila[0], /detecta (a )?(Avast|AVG|el antivirus)/i);
+  assert.match(fila[0], /Ve el aparato/);
+  assert.match(fila[0], /no puede saber/);
   assert.match(fila[0], /DNS seguro/);
 });
 
-test('obstaculos.html no promete detectar el DNS cifrado de Windows 11 ni los perfiles del iPhone', () => {
+test('obstaculos.html: Windows 11 y los perfiles del iPhone solo ven el aparato, con los pasos', () => {
   const html = leer('obstaculos.html');
   const fila = html.match(/<tr>\s*<th scope="row">Windows 11[\s\S]*?<\/tr>/);
   assert.ok(fila, 'falta la fila de Windows 11');
   assert.doesNotMatch(fila[0], /Lo detecta/);
-  assert.match(fila[0], /Solo con guía/);
-  assert.match(fila[0], /Automático/);
+  assert.match(fila[0], /Ve el aparato/);
+  assert.match(fila[0], /Automático \(DHCP\)/);
   assert.match(fila[0], /VPN y administración de dispositivos/);
+  assert.match(html, /<span class="etiqueta etiqueta-detecta">Ve el aparato<\/span>[^<]*no puede saber qué programa es/);
 });
 
 test('guia-router.html: en Android dice todo lo que pide la IP estática y cómo volver atrás', () => {

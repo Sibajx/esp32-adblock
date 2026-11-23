@@ -110,6 +110,10 @@ Solo contadores y el estado de la placa; no dice qué visitó cada aparato.
 | `blocked` | Bloqueadas por la lista o por tus reglas (anuncios). No incluye lo que corta un horario |
 | `schedule` *(fase 5)* | Consultas que cortó un horario (van aparte de `blocked`) |
 
+Las preguntas por `resolver.arpa` (DDR, RFC 9462: `_dns.resolver.arpa` tipo `SVCB`) se contestan
+en la placa con NOERROR sin respuestas, nunca se reenvían y no suman a `forwarded`, `blocked`,
+`canary` ni `relay` (no tienen contador propio). Ver [dns.md](dns.md#2b-nombres-especiales-fase-2).
+
 ### `POST /api/setup` (crear la contraseña en el primer uso)
 Pide `Host` válido y `X-Requested-With: adblock`, pero no sesión. Campo: `password`.
 
@@ -237,10 +241,25 @@ Nunca viene vacía. Códigos (lista cerrada; el panel pone el texto):
 | `sin_internet` | bad | El DNS de arriba dejó de contestar 3 veces seguidas (la última hace menos de 5 min) y no ha vuelto | SiBlock no logra hablar con internet |
 | `router_dns` | warn | La puerta de enlace hizo el 80 % o más de al menos 50 consultas | Todo llega desde tu módem o router (mesh o router que hace de DNS): que reparta la dirección de SiBlock directo |
 | `todo_bien` | ok | No salió ningún `bad` ni `warn` | No encontré nada raro. |
+| `windows_dns_cifrado` | info | No usa SiBlock (*) y el navegador es de Windows | Windows 11 puede tener «DNS cifrado»: Configuración > Red e Internet > Wi-Fi o Ethernet > tu red > Asignación de servidor DNS > Editar → «Automático (DHCP)» o apagar el DNS cifrado (los nombres pueden cambiar según la versión) |
+| `antivirus_dns` | info | Igual, en Windows | Revisa si el antivirus trae «DNS seguro» o «protección web»: Avast (Protección > Real Site) y AVG (Menú > Configuración > Componentes > Secure DNS). SiBlock no sabe qué programa es |
+| `vpn` | info | No usa SiBlock (*) en Windows, Mac, iPhone/iPad o Android | Una VPN encendida usa su propio DNS; es normal, se apaga si quieres el bloqueo (salvo la del trabajo) |
+| `apple_perfil_dns` | info | Igual, en Mac, iPhone o iPad | Perfil o app de DNS en Ajustes > General > VPN y administración de dispositivos (en Mac, buscar «Perfiles»), y revisar iCloud Private Relay |
+| `android_dns_privado` | info | Igual, en Android, si no salió `dns_cifrado` (que ya dice lo mismo) | Ajustes > Redes e internet > DNS privado → «Automático» o «Desactivado» (cambia según la marca) |
+| `revisar_aparato` | info | Igual, en ChromeOS, Linux o un navegador que no se reconoce | Revisa VPN, antivirus con «DNS seguro» y DNS cifrado en los ajustes o el navegador |
+
+(*) "No usa SiBlock" = la imagen falló (`no_usa_siblock` o `navegador_dns_propio`) o no se probó y
+el aparato no preguntó nada en 10 min (`sin_consultas`). El sistema sale del header `User-Agent`
+de esa misma petición con reglas simples (`siblock::osFromUserAgent`: "CrOS", "Android",
+"iPhone"/"iPad"/"iPod", "Windows", "Macintosh"/"Mac OS X", "Linux"/"X11"). Un iPad con Safari en
+modo escritorio dice ser Mac: por eso Mac, iPhone e iPad llevan los mismos pasos. Sin `User-Agent`
+no salen pasos por sistema. El `User-Agent` no se guarda, no se devuelve y no sale en el registro.
+**SiBlock no detecta un antivirus ni el DNS cifrado de Windows**: esos no le preguntan nada; solo
+ve que el aparato no usa SiBlock y muestra dónde mirar.
 
 Los textos completos están en `src/web_page.h`. `no_usa_siblock`, `ipv6` y `router_dns` llevan
 el enlace "Ver la guía" a `https://siblock.s-dev.win/guia-router.html`; `navegador_dns_propio`,
-`dns_cifrado` y `private_relay`, el enlace "Ver qué hacer" a `https://siblock.s-dev.win/obstaculos.html`
+`dns_cifrado`, `private_relay` y los pasos por sistema, el enlace "Ver qué hacer" a `https://siblock.s-dev.win/obstaculos.html`
 (que dice cómo apagar el "DNS seguro" de cada navegador y el "DNS privado" de Android).
 
 ### `GET /api/history` 🔒 *(fase 2)*

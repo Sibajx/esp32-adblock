@@ -33,7 +33,9 @@ make -C test_host test       # compila con -Werror, AddressSanitizer y UBSan; co
 - escape de JSON;
 - respuesta del portal cautivo (`buildAddressResponse`: A con la IP del AP, AAAA vacío);
 - *(fase 2)* respuesta NXDOMAIN (`buildNxdomain`): mismo ID y pregunta, RCODE 3, RD copiado, sin
-  respuestas y sin EDNS aunque la consulta lo traiga.
+  respuestas y sin EDNS aunque la consulta lo traiga;
+- respuesta NODATA (`buildNodata`) para `_dns.resolver.arpa` `SVCB` (64) y `A`: mismo ID y
+  pregunta, NOERROR, sin respuestas y sin EDNS.
 
 ### `test_siblock` (`lib/siblock_core`)
 
@@ -55,7 +57,8 @@ make -C test_host test       # compila con -Werror, AddressSanitizer y UBSan; co
 *(Fase 2)*:
 
 - `testDnsNames`: nombre de prueba, canario de Firefox y Private Relay (exactos, sin subdominios
-  salvo el de prueba); nombres de DNS cifrado por sufijo de etiqueta (`notdns.google` y
+  salvo el de prueba); `resolver.arpa` de DDR con sus subdominios (`_dns.resolver.arpa`), pero no
+  `xresolver.arpa`, `resolver.arpa.com` ni `in-addr.arpa`, y sin marcar al aparato; nombres de DNS cifrado por sufijo de etiqueta (`notdns.google` y
   `cloudflare-dns.com.evil.net` no cuentan); `isProbeHost` con mayúsculas, puerto, `.evil.com`
   al final, punto final, `_` y etiquetas vacías;
 - `testUsageHistory`: `epochHour` (hora anterior a `1700000000`, nov. 2023 → 0), suma por hora, huecos en cero, salto de
@@ -69,7 +72,12 @@ make -C test_host test       # compila con -Werror, AddressSanitizer y UBSan; co
   más viejo), orden bad → warn → info → ok, cada código de la tabla de
   [api.md](api.md#get-apidiagnoseprobeokfail-fase-2), router como DNS (≥ 50 consultas y ≥ 80 %,
   puerta de enlace 0 → no) y DNS de arriba caído (hacen falta 3 timeouts seguidos; 1 o 2 no
-  bastan) con el reloj dando la vuelta.
+  bastan) con el reloj dando la vuelta; pasos por sistema (Windows, Mac, iPhone, Android sin
+  repetir `dns_cifrado`, otro y sin `User-Agent`) solo cuando el aparato no usa SiBlock, sin
+  códigos repetidos en ninguna combinación;
+- `testOsFromUserAgent`: User-Agents reales de Chrome, Edge, Firefox y Safari en Windows, Mac,
+  iPhone, iPad (y el iPad en modo escritorio, que dice ser Mac), Android (Chrome, Samsung,
+  Firefox), ChromeOS y Linux; vacío, `curl` y `Python-urllib`.
 
 *(Fase 3)* `testCloud` (`lib/siblock_core/cloud.*`):
 
@@ -196,11 +204,16 @@ pkill -x esp32-sim                              # nunca pkill -f
 5. reglas propias; *(fase 2)* 5b. nombres especiales y Private Relay: canario NXDOMAIN (A y AAAA)
    y `canary` en `/api/stats`, nombre de prueba (A = 127.0.0.1 con TTL 0, AAAA vacío),
    `/api/options` (401, 403, 400 con `relayBlock=2` o vacío), Private Relay apagado/encendido y en
-   pausa, `relay_block` en una placa nueva y que "borrar la configuración" lo quite;
+   pausa, `relay_block` en una placa nueva y que "borrar la configuración" lo quite; DDR:
+   `_dns.resolver.arpa` (`SVCB` y `A`), `resolver.arpa` y `_853._dns.resolver.arpa` → NOERROR
+   sin respuestas, sin reenviar (`forwarded` igual), sin bloqueadas, sin marcar al aparato y sin
+   salir en "últimas consultas";
    5c. comprobación, diagnóstico e historia: GIF con `Host` de prueba (200, 43 B, `no-store`) y con
    `Host` falso (403), `/api/stats` con `Host` de prueba (403), CSP con `img-src`,
    `/api/diagnose` (`usa_siblock`, `navegador_dns_propio`, desde otro aparato `no_usa_siblock` +
-   `ipv6`, sin anti-CSRF 403, sin dominios ni IPs en la respuesta), `dns.google` en `bypass` y
+   `ipv6`, sin anti-CSRF 403, sin dominios ni IPs en la respuesta; con `User-Agent` de Windows,
+   Mac, iPhone, Android y otro, los pasos de cada sistema solo con `probe=fail`, y el `User-Agent`
+   nunca vuelve en la respuesta), `dns.google` en `bypass` y
    `dns_cifrado`, `/api/history` (401 sin sesión, 168 horas, top con `doubleclick.net`, dominio de
    70 caracteres cortado a 63), router como DNS con `SIM_GATEWAY` (60 consultas sí, 10 no) e
    historia que sobrevive a un reinicio;

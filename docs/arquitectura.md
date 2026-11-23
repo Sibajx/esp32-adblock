@@ -261,11 +261,11 @@ flowchart LR
 
 | Módulo | Qué hace |
 |---|---|
-| `dns_names.*` | `classifySpecial` (prueba, canario de Firefox, Private Relay), `bypassFlagsFor` (DNS cifrado conocido o Private Relay), `kDohNames` y `isProbeHost` (valida el `Host` de la imagen de prueba). Sin `std::regex` (ocupa flash) |
+| `dns_names.*` | `classifySpecial` (prueba, canario de Firefox, Private Relay, `resolver.arpa` de DDR), `bypassFlagsFor` (DNS cifrado conocido o Private Relay), `kDohNames` y `isProbeHost` (valida el `Host` de la imagen de prueba). Sin `std::regex` (ocupa flash) |
 | `usage.*` | `epochHour`; `UsageHistory` (168 casillas de una hora UTC, la casilla de la hora `h` es `h % 168`; maneja huecos, saltos de 7 días o más y horas atrasadas); `TopBlocked` (Space-Saving de 32 casillas, nombres de hasta 63 bytes, `halve()` cada 24 h) |
-| `diagnose.*` | `BypassTable` (16 aparatos, se olvidan a las 24 h); `diagnose` (arma la lista de hallazgos con códigos fijos, ordenada bad → warn → info → ok); `routerLooksLikeDns` (≥ 50 consultas y ≥ 80 % de la puerta de enlace); `upstreamLooksDown` (3 o más timeouts seguidos sin ninguna respuesta en medio, el último más nuevo que la última respuesta y de hace < 5 min) |
+| `diagnose.*` | `BypassTable` (16 aparatos, se olvidan a las 24 h); `diagnose` (arma la lista de hallazgos con códigos fijos, ordenada bad → warn → info → ok, con pasos según el sistema si el aparato no usa SiBlock); `osFromUserAgent` (Windows, Mac, iPhone/iPad, Android, ChromeOS, Linux u otro, solo para esa respuesta); `routerLooksLikeDns` (≥ 50 consultas y ≥ 80 % de la puerta de enlace); `upstreamLooksDown` (3 o más timeouts seguidos sin ninguna respuesta en medio, el último más nuevo que la última respuesta y de hace < 5 min) |
 
-Y en `lib/adblock_core/`: `buildNxdomain` (respuesta "no existe", ver [dns.md](dns.md#nxdomain-adblockbuildnxdomain)).
+Y en `lib/adblock_core/`: `buildNxdomain` (respuesta "no existe", ver [dns.md](dns.md#nxdomain-adblockbuildnxdomain)) y `buildNodata` (NOERROR sin respuestas, para `resolver.arpa`).
 
 ### Cambios en `src/`
 

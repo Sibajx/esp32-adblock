@@ -26,6 +26,9 @@ SpecialName classifySpecial(const std::string& name) {
   if (isOrUnder(name, kProbeSuffix)) return SpecialName::kProbe;
   if (name == "use-application-dns.net") return SpecialName::kCanary;
   if (name == "mask.icloud.com" || name == "mask-h2.icloud.com") return SpecialName::kRelay;
+  // DDR (RFC 9462 §4): SiBlock no tiene resolvedores cifrados que anunciar. Nunca se reenvía: el
+  // DNS de arriba (1.1.1.1, 8.8.8.8) anunciaría los suyos y el aparato se saltaría SiBlock.
+  if (isOrUnder(name, "resolver.arpa")) return SpecialName::kDdr;
   return SpecialName::kNone;
 }
 

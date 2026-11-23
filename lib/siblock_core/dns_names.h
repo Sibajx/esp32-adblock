@@ -1,5 +1,5 @@
-// SiBlock: nombres DNS especiales (nombre de prueba, canario de Firefox, iCloud Private Relay) y
-// nombres conocidos de DNS cifrado. Sin dependencias de Arduino.
+// SiBlock: nombres DNS especiales (nombre de prueba, canario de Firefox, iCloud Private Relay,
+// resolver.arpa de DDR) y nombres conocidos de DNS cifrado. Sin dependencias de Arduino.
 #pragma once
 #include <cstddef>
 #include <cstdint>
@@ -9,11 +9,12 @@ namespace siblock {
 
 constexpr const char kProbeSuffix[] = "prueba.siblock.internal";
 
-enum class SpecialName : uint8_t { kNone, kProbe, kCanary, kRelay };
+enum class SpecialName : uint8_t { kNone, kProbe, kCanary, kRelay, kDdr };
 
 // name: ya en minúsculas, sin punto final (como DnsQuestion::name).
 // kProbe: igual a kProbeSuffix o termina en "." + kProbeSuffix. kCanary: "use-application-dns.net".
-// kRelay: "mask.icloud.com" o "mask-h2.icloud.com". Todo exacto (sin subdominios) salvo kProbe.
+// kRelay: "mask.icloud.com" o "mask-h2.icloud.com". kDdr: "resolver.arpa" o cualquier nombre
+// debajo (como "_dns.resolver.arpa", RFC 9462). Todo exacto (sin subdominios) salvo kProbe y kDdr.
 SpecialName classifySpecial(const std::string& name);
 
 // IP que contesta el nombre de prueba: la de la red de la casa; si todavía no hay (0, solo modo

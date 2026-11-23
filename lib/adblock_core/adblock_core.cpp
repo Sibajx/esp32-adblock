@@ -462,4 +462,8 @@ size_t buildNxdomain(const uint8_t* query, const DnsQuestion& q, uint8_t* out) {
   return copyHeaderAndQuestion(query, q, out, 3);
 }
 
+size_t buildNodata(const uint8_t* query, const DnsQuestion& q, uint8_t* out) {
+  return copyHeaderAndQuestion(query, q, out, 0);
+}
+
 }  // namespace adblock

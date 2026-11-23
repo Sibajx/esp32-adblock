@@ -199,6 +199,9 @@ size_t DnsServer::answerLocally(const uint8_t* data, const DnsQuestion& q, uint3
         return buildNxdomain(data, q, out);
       }
       break;
+    case siblock::SpecialName::kDdr:  // DDR (RFC 9462): no hay DNS cifrado que anunciar -> NODATA
+      countClient(client, false);
+      return buildNodata(data, q, out);
     default:
       break;
   }

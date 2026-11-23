@@ -575,6 +575,15 @@ static void testDnsNames() {
   CHECK(classifySpecial("x.mask.icloud.com") == SpecialName::kNone);
   CHECK(classifySpecial("") == SpecialName::kNone);
   CHECK(classifySpecial("google.com") == SpecialName::kNone);
+  // DDR (RFC 9462): resolver.arpa y todo lo de debajo se contesta aquí; parecidos no.
+  CHECK(classifySpecial("_dns.resolver.arpa") == SpecialName::kDdr);
+  CHECK(classifySpecial("resolver.arpa") == SpecialName::kDdr);
+  CHECK(classifySpecial("_853._dns.resolver.arpa") == SpecialName::kDdr);
+  CHECK(classifySpecial("xresolver.arpa") == SpecialName::kNone);
+  CHECK(classifySpecial("resolver.arpa.com") == SpecialName::kNone);
+  CHECK(classifySpecial("arpa") == SpecialName::kNone);
+  CHECK(classifySpecial("1.168.192.in-addr.arpa") == SpecialName::kNone);
+  CHECK(bypassFlagsFor("_dns.resolver.arpa") == 0);  // no quiere decir que el aparato se salte SiBlock
 
   CHECK(bypassFlagsFor("dns.google") == kBypassDoh);
   CHECK(bypassFlagsFor("chrome.cloudflare-dns.com") == kBypassDoh);
@@ -934,17 +943,49 @@ static void testDiagnose() {
   CHECK(s == "horario_todo/warn,usa_siblock/ok");
   s = diagStr({ProbeResult::kOk, true, 0, false, false, true, false, false, false, kGroupGames});
   CHECK(s == "horario_activo/info,usa_siblock/ok,todo_bien/ok");
-  // Siempre ordenado bad > warn > info > ok y nunca vacío.
+  // Siempre ordenado bad > warn > info > ok, nunca vacío y sin códigos repetidos.
   for (int mask = 0; mask < 2048; mask++) {
     for (int p = 0; p < 3; p++) {
-      DiagInput in{ProbeResult(p), bool(mask & 1), uint8_t((mask >> 1) & 3), bool(mask & 8),
-                   bool(mask & 16), bool(mask & 32), bool(mask & 64), bool(mask & 128),
-                   bool(mask & 256), uint8_t((mask >> 9) & 3) == 0 ? uint8_t(0) : uint8_t(1u << (((mask >> 9) & 3) - 1))};
-      auto v = diagnose(in);
-      bool ok = !v.empty();
-      for (size_t i = 1; i < v.size(); i++) ok = ok && uint8_t(v[i - 1].level) >= uint8_t(v[i].level);
-      CHECK(ok);
+      for (int os = 0; os <= int(DeviceOs::kLinux); os++) {
+        DiagInput in{ProbeResult(p), bool(mask & 1), uint8_t((mask >> 1) & 3), bool(mask & 8),
+                     bool(mask & 16), bool(mask & 32), bool(mask & 64), bool(mask & 128),
+                     bool(mask & 256), uint8_t((mask >> 9) & 3) == 0 ? uint8_t(0) : uint8_t(1u << (((mask >> 9) & 3) - 1)),
+                     DeviceOs(os)};
+        auto v = diagnose(in);
+        bool ok = !v.empty();
+        for (size_t i = 1; i < v.size(); i++) ok = ok && uint8_t(v[i - 1].level) >= uint8_t(v[i].level);
+        for (size_t i = 0; i < v.size(); i++)
+          for (size_t j = i + 1; j < v.size(); j++) ok = ok && std::string(v[i].code) != v[j].code;
+        CHECK(ok);
+      }
     }
+  }
+
+  // Pasos por sistema: solo cuando el aparato no usa SiBlock, todos "info", después de lo demás.
+  auto withOs = [](ProbeResult p, bool seen, uint8_t by, DeviceOs os) {
+    return diagStr({p, seen, by, false, false, true, false, false, false, 0, os});
+  };
+  CHECK(withOs(ProbeResult::kFail, false, 0, DeviceOs::kWindows) ==
+        "no_usa_siblock/bad,ipv6/info,windows_dns_cifrado/info,antivirus_dns/info,vpn/info");
+  CHECK(withOs(ProbeResult::kFail, true, 0, DeviceOs::kWindows) ==
+        "navegador_dns_propio/warn,ipv6/info,windows_dns_cifrado/info,antivirus_dns/info,vpn/info");
+  CHECK(withOs(ProbeResult::kSkip, false, 0, DeviceOs::kWindows) ==
+        "sin_consultas/warn,windows_dns_cifrado/info,antivirus_dns/info,vpn/info");
+  CHECK(withOs(ProbeResult::kFail, false, 0, DeviceOs::kMac) == "no_usa_siblock/bad,ipv6/info,apple_perfil_dns/info,vpn/info");
+  CHECK(withOs(ProbeResult::kFail, false, 0, DeviceOs::kIos) == "no_usa_siblock/bad,ipv6/info,apple_perfil_dns/info,vpn/info");
+  CHECK(withOs(ProbeResult::kFail, false, 0, DeviceOs::kAndroid) ==
+        "no_usa_siblock/bad,ipv6/info,android_dns_privado/info,vpn/info");
+  // Si ya salió dns_cifrado ("apaga DNS privado"), Android no lo repite.
+  CHECK(withOs(ProbeResult::kFail, true, kBypassDoh, DeviceOs::kAndroid) ==
+        "navegador_dns_propio/warn,dns_cifrado/warn,ipv6/info,vpn/info");
+  for (DeviceOs os : {DeviceOs::kOther, DeviceOs::kChromeOs, DeviceOs::kLinux})
+    CHECK(withOs(ProbeResult::kFail, false, 0, os) == "no_usa_siblock/bad,ipv6/info,revisar_aparato/info");
+  CHECK(withOs(ProbeResult::kFail, false, 0, DeviceOs::kNone) == "no_usa_siblock/bad,ipv6/info");
+  // Si usa SiBlock (o preguntó hace poco y no se probó) no hay pasos por sistema.
+  for (int os = 0; os <= int(DeviceOs::kLinux); os++) {
+    CHECK(withOs(ProbeResult::kOk, true, 0, DeviceOs(os)) == "usa_siblock/ok,todo_bien/ok");
+    CHECK(withOs(ProbeResult::kOk, false, 0, DeviceOs(os)) == "usa_siblock/ok,todo_bien/ok");
+    CHECK(withOs(ProbeResult::kSkip, true, 0, DeviceOs(os)) == "todo_bien/ok");
   }
 
   const uint32_t gw = 0x0101A8C0;
@@ -965,6 +1006,52 @@ static void testDiagnose() {
     CHECK(upstreamLooksDown(base + 1000 + 299999, base + 500, base + 1000, 3));
     CHECK(!upstreamLooksDown(base + 2000, base + 1500, base + 1000, 3));
   }
+}
+
+// Sistema por el User-Agent (User-Agents reales de navegadores).
+static void testOsFromUserAgent() {
+  using namespace siblock;
+  const struct {
+    const char* ua;
+    DeviceOs os;
+  } casos[] = {
+      {"", DeviceOs::kNone},
+      {"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+       DeviceOs::kWindows},
+      {"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 "
+       "Edg/131.0.0.0",
+       DeviceOs::kWindows},
+      {"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0", DeviceOs::kWindows},
+      {"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 "
+       "Safari/605.1.15",
+       DeviceOs::kMac},  // también un iPad con Safari en modo escritorio
+      {"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:133.0) Gecko/20100101 Firefox/133.0", DeviceOs::kMac},
+      {"Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 "
+       "Mobile/15E148 Safari/604.1",
+       DeviceOs::kIos},
+      {"Mozilla/5.0 (iPhone; CPU iPhone OS 17_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) "
+       "CriOS/131.0.6778.73 Mobile/15E148 Safari/604.1",
+       DeviceOs::kIos},
+      {"Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 "
+       "Mobile/15E148 Safari/604.1",
+       DeviceOs::kIos},
+      {"Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36",
+       DeviceOs::kAndroid},
+      {"Mozilla/5.0 (Linux; Android 14; SAMSUNG SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/26.0 "
+       "Chrome/122.0.0.0 Mobile Safari/537.36",
+       DeviceOs::kAndroid},
+      {"Mozilla/5.0 (Android 14; Mobile; rv:133.0) Gecko/133.0 Firefox/133.0", DeviceOs::kAndroid},
+      {"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+       DeviceOs::kChromeOs},
+      {"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+       DeviceOs::kLinux},
+      {"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:133.0) Gecko/20100101 Firefox/133.0", DeviceOs::kLinux},
+      {"Python-urllib/3.12", DeviceOs::kOther},
+      {"curl/8.5.0", DeviceOs::kOther},
+      {"windows", DeviceOs::kOther},  // se respetan mayúsculas, como las mandan los navegadores
+  };
+  for (auto& c : casos) CHECK(osFromUserAgent(c.ua) == c.os);
+  CHECK(osFromUserAgent(std::string(4000, 'x') + "Android") == DeviceOs::kAndroid);
 }
 
 // Fase 2, corrección: el nombre de prueba nunca contesta 0.0.0.0 (solo AP o sin IP todavía).
@@ -1875,6 +1962,7 @@ int main() {
   testBypassTableAt(0);
   testBypassTableAt(0xFFFFFFFFu - 60000);
   testDiagnose();
+  testOsFromUserAgent();
   testProbeAnswerIp();
   testUpstreamWatch();
   testCloud();

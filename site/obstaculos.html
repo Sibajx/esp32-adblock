@@ -44,6 +44,7 @@
         <li><span class="etiqueta etiqueta-solo">Lo arregla solo</span> SiBlock lo resuelve sin que hagas nada.</li>
         <li><span class="etiqueta etiqueta-activar">Lo puedes activar</span> Es una opción en tu panel. Viene apagada.</li>
         <li><span class="etiqueta etiqueta-detecta">Lo detecta</span> El botón “Algo no funciona” lo encuentra y te dice qué hacer.</li>
+        <li><span class="etiqueta etiqueta-detecta">Ve el aparato</span> “Algo no funciona” ve que ese aparato se salta SiBlock y te muestra los pasos para su sistema, pero no puede saber qué programa es.</li>
         <li><span class="etiqueta">Solo con guía</span> SiBlock no puede verlo; aquí te explicamos qué hacer.</li>
         <li><span class="etiqueta">Más adelante</span> Todavía no está listo.</li>
       </ul>
@@ -152,17 +153,23 @@
             <tr>
               <th scope="row">Windows 11 con DNS cifrado, o un perfil de DNS en el iPhone</th>
               <td>El aparato se salta SiBlock.</td>
-              <td><span class="etiqueta">Solo con guía</span> Casi siempre usan una dirección fija y
-                no le preguntan nada a SiBlock, así que “Algo no funciona” solo puede decirte que el
-                aparato no usa SiBlock. En Windows: Configuración → Red e Internet → tu red → deja la
-                asignación del DNS en <strong>Automático</strong>. En el iPhone: Ajustes → General →
+              <td><span class="etiqueta etiqueta-detecta">Ve el aparato</span> Usan una dirección fija y
+                no le preguntan nada a SiBlock, así que “Algo no funciona” no puede saber qué lo causa.
+                Sí ve que ese aparato no usa SiBlock y te muestra los pasos para su sistema (Windows,
+                iPhone o Mac). En Windows: Configuración → Red e Internet → Wi-Fi o Ethernet → tu red →
+                Asignación de servidor DNS → Editar, y déjala en <strong>Automático (DHCP)</strong> o
+                apaga el DNS cifrado. En el iPhone: Ajustes → General →
                 VPN y administración de dispositivos, y borra los perfiles de DNS que no reconozcas.
                 <span class="falta">Falta verificar</span> los nombres de los menús.</td>
             </tr>
             <tr>
-              <th scope="row">Antivirus con “DNS seguro” o protección web (Avast, Kaspersky, ESET y otros)</th>
+              <th scope="row">Antivirus con “DNS seguro” o protección web (Avast, AVG, Kaspersky, ESET y otros)</th>
               <td>El antivirus pregunta por su cuenta y se salta SiBlock.</td>
-              <td><span class="etiqueta">Solo con guía</span> SiBlock todavía no lo reconoce. Abre tu antivirus, busca “DNS seguro” o “protección web” y apágalo.</td>
+              <td><span class="etiqueta etiqueta-detecta">Ve el aparato</span> SiBlock no puede saber
+                qué antivirus tienes: solo ve que ese aparato no le pregunta. En Windows, “Algo no
+                funciona” te muestra dónde buscar. Abre tu antivirus, busca “DNS seguro” o “protección
+                web” y apágalo. En Avast: Protección → Real Site. En AVG: Menú → Configuración →
+                Componentes → Secure DNS.</td>
             </tr>
             <tr>
               <th scope="row">Aparatos con DNS fijo de fábrica: Chromecast, Google TV, Nest, algunas teles Samsung o LG, Roku</th>

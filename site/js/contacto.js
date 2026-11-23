@@ -34,6 +34,12 @@ const AVISOS = Object.freeze({
   sin_internet: 'SiBlock no llegaba a internet',
   router_dns: 'todo llega desde el módem',
   todo_bien: 'nada raro',
+  windows_dns_cifrado: 'pasos de Windows: DNS cifrado',
+  antivirus_dns: 'pasos: antivirus con DNS seguro',
+  vpn: 'pasos: VPN',
+  apple_perfil_dns: 'pasos de iPhone o Mac: perfil de DNS',
+  android_dns_privado: 'pasos de Android: DNS privado',
+  revisar_aparato: 'pasos: revisar VPN, antivirus y DNS cifrado',
 });
 
 function valorDe(clave, v) {

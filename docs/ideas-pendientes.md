@@ -297,16 +297,19 @@ Preguntas abiertas:
 **Estado (fase 2):** ✅ canario de Firefox (siempre), ✅ opción de iCloud Private Relay (apagada de
 fábrica), ✅ detección de DNS cifrado y de Private Relay por aparato (solo en RAM), ✅ detección de
 router que hace de DNS (mesh) y ✅ página `site/obstaculos.html` con estas tablas en palabras
-simples y "Lo que un DNS no puede bloquear". Pendiente: proveedor que intercepta el 53, red de
-invitados, VLANs, detectar antivirus (por ahora la página lo marca "Solo con guía": buscar "DNS
-seguro" o "protección web" en el antivirus y apagarlo), detectar Windows 11 con DNS cifrado y
-los perfiles de DNS del iPhone (por ahora la página los marca "Solo con guía": usan una dirección
-fija y nunca le preguntan a SiBlock, así que el botón solo puede decir que el aparato no usa
-SiBlock), DNS fijo de fábrica y el modo estricto (fase 4).
+simples y "Lo que un DNS no puede bloquear". ✅ Windows 11 con DNS cifrado, antivirus con "DNS
+seguro" y perfiles de DNS del iPhone/Mac: **Ve el aparato** (no hay un nombre DNS documentado que
+los delate, así que SiBlock no sabe qué programa es; el botón ve que el aparato no usa SiBlock y,
+por el `User-Agent` del navegador, muestra los pasos de su sistema: Windows, Mac/iPhone/iPad,
+Android u otro). ✅ DDR (RFC 9462): `resolver.arpa` se contesta en la placa con NOERROR vacío y
+nunca se reenvía, para que el DNS de arriba no le anuncie su DNS cifrado a los aparatos.
+Pendiente: proveedor que intercepta el 53, red de invitados, VLANs, DNS fijo de fábrica y el modo
+estricto (fase 4).
 
 Cosas que hacen que un aparato **no pase por SiBlock** o que SiBlock no pueda hacer su trabajo.
 "Automático" = SiBlock lo resuelve solo; "Detecta" = el botón "algo no funciona" lo encuentra y
-explica qué hacer; "Guía" = solo se puede explicar.
+explica qué hacer; "Ve el aparato" = el botón ve que ese aparato se salta SiBlock y muestra los
+pasos para su sistema, pero no sabe qué programa es; "Guía" = solo se puede explicar.
 
 **En la red**
 
@@ -328,10 +331,10 @@ explica qué hacer; "Guía" = solo se puede explicar.
 | iCloud Private Relay (Safari en iPhone/Mac) | Safari se salta el ESP32 | ✅ (fase 2) **Automático**: contestar NXDOMAIN a `mask.icloud.com` y `mask-h2.icloud.com` (Apple lo apaga en esa red y avisa al usuario). **Decidido: es una opción que la persona activa**, apagada de fábrica, con un aviso de que también quita la privacidad de Private Relay. Mientras esté apagada, el botón "algo no funciona" detecta los iPhone/Mac que se saltan y sugiere activarla |
 | Chrome / Edge "DNS seguro" | Solo se activa solo si el DNS configurado lo soporta; con el ESP32 no pasa. Si alguien eligió un proveedor a mano, sí se salta | Detecta (consultas a `dns.google`, `cloudflare-dns.com`…) y explica dónde apagarlo |
 | Android "DNS privado" (DoT, puerto 853) | Se salta el ESP32 | Detecta y explica; modo estricto lo corta |
-| Windows 11 DNS cifrado, perfiles de DNS en iPhone | Igual | Detecta y explica (pendiente; en fase 2: **Guía**, ver Estado arriba) |
+| Windows 11 DNS cifrado, perfiles de DNS en iPhone | Igual | ✅ **Ve el aparato**: el botón ve que no usa SiBlock y muestra los pasos de Windows (`windows_dns_cifrado`) o de iPhone/Mac (`apple_perfil_dns`). DDR (`_dns.resolver.arpa`) se contesta vacío para que el DNS de arriba no anuncie su DNS cifrado |
 | DNS fijo de fábrica: Chromecast / Google TV / Nest (8.8.8.8), algunas teles Samsung/LG, Roku | Ignoran el DHCP | Solo se arregla en el router: **modo estricto** (abajo) |
 | VPN en el aparato (trabajo, NordVPN, etc.) | Usa el DNS de la VPN | Guía: es normal y no se toca; las computadoras del trabajo no se deben forzar |
-| Antivirus con "DNS seguro" o protección web (Avast, Kaspersky, ESET…) | Hacen de proxy de DNS | Detecta y explica (pendiente; en fase 2: **Guía**, ver Estado arriba) |
+| Antivirus con "DNS seguro" o protección web (Avast, Kaspersky, ESET…) | Hacen de proxy de DNS | ✅ **Ve el aparato** (no sabe qué antivirus es): en Windows el botón muestra `antivirus_dns` con dónde se apaga en Avast (Real Site) y AVG (Secure DNS); en otros sistemas, `revisar_aparato` |
 
 **Lo que un bloqueador por DNS no puede quitar** (✅ fase 2: en `site/obstaculos.html#no-puede`;
 decirlo claro en la página para no prometer de más): anuncios de YouTube, Twitch, Instagram, Facebook y TikTok, porque vienen del mismo dominio

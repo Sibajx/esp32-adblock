@@ -173,4 +173,8 @@ size_t buildServfail(const uint8_t* query, const DnsQuestion& q, uint8_t* out);
 // sin respuestas ni EDNS. Se usa para el canario de Firefox y para Private Relay.
 size_t buildNxdomain(const uint8_t* query, const DnsQuestion& q, uint8_t* out);
 
+// NODATA ("ese nombre no tiene datos de ese tipo"): igual que NXDOMAIN pero con RCODE=0 (NOERROR) y
+// sin respuestas, para cualquier tipo. Se usa para resolver.arpa (RFC 9462, DDR).
+size_t buildNodata(const uint8_t* query, const DnsQuestion& q, uint8_t* out);
+
 }  // namespace adblock

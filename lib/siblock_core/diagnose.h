@@ -35,6 +35,16 @@ ProbeResult parseProbe(const std::string& s);  // "ok" / "fail"; lo demás kSkip
 enum class DiagLevel : uint8_t { kOk, kInfo, kWarn, kBad };
 const char* levelName(DiagLevel l);  // "ok" "info" "warn" "bad"
 
+// Sistema del aparato, adivinado por el User-Agent del navegador que abre el panel. Solo sirve para
+// elegir qué pasos mostrar en esa respuesta; no se guarda. kNone: sin User-Agent (no hay pasos por
+// sistema). kOther: hay User-Agent pero no se reconoce. Un iPad con Safari en modo escritorio dice
+// ser Mac: por eso kMac y kIos llevan los mismos pasos.
+enum class DeviceOs : uint8_t { kNone, kOther, kWindows, kMac, kIos, kAndroid, kChromeOs, kLinux };
+
+// Reglas simples por trozos de texto, en este orden: "CrOS", "Android", "iPhone"/"iPad"/"iPod",
+// "Windows", "Macintosh"/"Mac OS X", "Linux"/"X11". Vacío -> kNone; lo demás -> kOther.
+DeviceOs osFromUserAgent(const std::string& ua);
+
 struct DiagFinding {
   const char* code;
   DiagLevel level;
@@ -51,9 +61,14 @@ struct DiagInput {
   bool viaRouter;
   bool devicePaused;       // este aparato tiene su propia pausa (fase 5)
   uint8_t scheduleGroups;  // grupos que un horario le corta ahora a este aparato (kGroup*)
+  DeviceOs os = DeviceOs::kNone;  // del User-Agent de esta petición; kNone si no hay
 };
 
 // Orden: bad, warn, info, ok (estable dentro de cada nivel). Nunca vacía.
+// Si el aparato no usa SiBlock (la imagen falló, o no se probó y no preguntó nada en 10 min) suma
+// pasos para su sistema, todos "info": Windows -> windows_dns_cifrado, antivirus_dns y vpn;
+// Mac/iPhone/iPad -> apple_perfil_dns y vpn; Android -> android_dns_privado (salvo que ya salga
+// dns_cifrado, que dice lo mismo) y vpn; ChromeOS, Linux u otro -> revisar_aparato.
 std::vector<DiagFinding> diagnose(const DiagInput& in);
 
 // La puerta de enlace hizo el 80 % o más de al menos 50 consultas. gatewayIp 0 -> false.

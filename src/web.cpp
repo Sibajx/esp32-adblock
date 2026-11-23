@@ -598,6 +598,9 @@ void handleDiagnose() {
   in.upstreamDown = gDns->upstreamDown();
   in.viaRouter = siblock::routerLooksLikeDns(gw, gw ? gDns->clientQueries(gw) : 0, gDns->totalClientQueries());
   family::diagFor(ip, in.devicePaused, in.scheduleGroups);
+  // El User-Agent solo elige los pasos por sistema de esta respuesta: no se guarda ni se devuelve.
+  String ua = server.header("User-Agent");
+  in.os = siblock::osFromUserAgent(std::string(ua.c_str(), ua.length()));
   String j = "{\"findings\":[";
   bool first = true;
   for (const siblock::DiagFinding& f : siblock::diagnose(in)) {
@@ -1354,8 +1357,8 @@ void begin(BlockList* list, DnsServer* dns, volatile bool* updateRequested, sibl
   gList = list;
   gDns = dns;
   gUpdateRequested = updateRequested;
-  static const char* headers[] = {kCsrfHeader, "Authorization", kTokenHeader, kPartHeader};
-  server.collectHeaders(headers, 4);
+  static const char* headers[] = {kCsrfHeader, "Authorization", kTokenHeader, kPartHeader, "User-Agent"};
+  server.collectHeaders(headers, 5);
   LittleFS.remove(kRestoreTmp);  // un respaldo a medias de antes de reiniciar no vale
   server.on("/", HTTP_GET, guarded<false, handlePage>);
   server.on("/api/stats", HTTP_GET, guarded<false, handleStats>);

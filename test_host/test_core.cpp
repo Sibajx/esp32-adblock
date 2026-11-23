@@ -401,6 +401,31 @@ static void testNxdomain() {
   }
 }
 
+// DDR (RFC 9462): _dns.resolver.arpa contesta NOERROR sin respuestas, para SVCB (64) y para A.
+static void testNodata() {
+  for (uint16_t t : {uint16_t(64), kTypeA}) {
+    for (bool edns : {false, true}) {
+      auto q = makeQuery("_dns.resolver.arpa", t, edns);
+      q[0] = 0xCA;
+      q[1] = 0xFE;
+      DnsQuestion dq;
+      CHECK(parseQuery(q.data(), q.size(), dq));
+      CHECK(dq.qtype == t);
+      uint8_t out[kMaxDnsPacket];
+      size_t n = buildNodata(q.data(), dq, out);
+      CHECK(n == dq.questionEnd);
+      CHECK(out[0] == 0xCA && out[1] == 0xFE);
+      CHECK((out[3] & 0x0F) == 0);   // NOERROR
+      CHECK((out[2] & 0x80) != 0);   // QR
+      CHECK((out[3] & 0x80) != 0);   // RA
+      CHECK(out[4] == 0 && out[5] == 1);
+      CHECK(out[6] == 0 && out[7] == 0 && out[8] == 0 && out[9] == 0);  // sin respuestas
+      CHECK(out[10] == 0 && out[11] == 0);
+      CHECK(memcmp(out + 12, q.data() + 12, dq.questionEnd - 12) == 0);
+    }
+  }
+}
+
 int main() {
   testParseListLine();
   testSuffixes();
@@ -413,6 +438,7 @@ int main() {
   testDns();
   testCaptiveResponse();
   testNxdomain();
+  testNodata();
   if (fails) {
     std::printf("%d fallas\n", fails);
     return 1;
