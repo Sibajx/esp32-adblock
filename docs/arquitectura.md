@@ -397,8 +397,8 @@ probarlos sin internet.
 | `pasos` | día y paso | contador |
 | `temas` | día y tema | contador |
 | `contacto_dia` | día | mensajes del día (para el tope de 200) |
-| `permitidos` | dominio aprobado | dominio y día en que el dueño lo aprobó (tope de 500) |
-| `permitidos_version` | — (una sola fila) | número que sube con cada cambio de `permitidos` |
+| `permitidos` | dominio aprobado | dominio y día en que el dueño lo aprobó (tope de 500 y de 30 000 B de nombres) |
+| `permitidos_version` | — (una sola fila) | número que sube con cada cambio de `permitidos` (disparadores de `0004_permitidos_version.sql`, en la misma sentencia) |
 
 `instalacion` es siempre `SHA-256(ID_PEPPER ‖ número)` (32 hex). `dia` = días desde 1970 en UTC.
 Ninguna columna guarda una IP, una MAC, un nombre, un correo o un mensaje.

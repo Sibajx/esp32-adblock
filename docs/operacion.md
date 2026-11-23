@@ -162,7 +162,9 @@ aprobó a mano; como mucho 500. SiBlock deja de bloquearlos a ellos y a sus subd
 Debajo de la opción, el panel dice cuántos sitios están en uso y cuándo se revisó la lista por
 última vez. En las consultas recientes, lo que deja pasar sale como «permitido por la comunidad»
 (no como «permitido», que es lo tuyo). La lista se guarda en `/comunidad.bin` (unos 4 KB como
-mucho; solo una huella de cada sitio, no los nombres), así que sigue valiendo tras un corte de luz.
+mucho; solo una huella de cada sitio con una llave al azar de tu placa, no los nombres), así que
+sigue valiendo tras un corte de luz. Al actualizar a esta versión, un `/comunidad.bin` viejo no se
+usa: la placa queda sin estos permitidos un par de minutos, hasta que baja la lista otra vez.
 Si una bajada falla o llega una lista mal hecha, se queda la de antes y se vuelve a intentar a la
 1, 2, 4… h. Por la serie sale `[nube] permitidos de la comunidad: <n>|no se pudo leer`.
 
@@ -205,7 +207,8 @@ Qué te puede avisar (eliges cuáles):
   normal, tuvo una falla y se recuperó sola, bajó la corriente o actualización) y cuántos sitios
   tiene su lista.
 - **La lista no se pudo actualizar**: si falla tres veces seguidas (unos 6 minutos), y luego como
-  mucho una vez al día mientras siga fallando. Cuando vuelve a funcionar te dice «ya pudo».
+  mucho una vez al día mientras siga fallando. Cuando vuelve a funcionar te dice «ya pudo». Solo
+  cuentan los intentos que hace sola: si pulsas «Actualizar ahora» y falla, no te avisa por eso.
 - **Resumen semanal**: el domingo a las 8 de la noche (hora de tu casa, la misma de los horarios),
   cuántos anuncios y rastreadores quitó en la semana.
 
@@ -245,7 +248,9 @@ visitas.
    | el token no es válido | Cópialo otra vez de @BotFather (o pídele uno nuevo con `/token`) |
    | no encontró ese chat | Revisa el número de chat |
    | no deja que tu bot te escriba | Abre el chat con tu bot y pulsa **Iniciar** |
-   | no pudo llegar a Telegram | SiBlock no tiene internet o tu red bloquea `api.telegram.org` |
+   | no pudo llegar a Telegram | SiBlock no tiene internet o tu red bloquea `api.telegram.org` (lo intenta otra vez cada minuto, hasta 5 veces) |
+   | no tenía memoria libre | Pasa solo: lo intenta otra vez cada minuto, hasta 5 veces. Si sigue, reinicia la placa |
+   | falta el token o el número de chat | Vuelve a pegar el token y el número de chat y pulsa Guardar |
 
 3. Activa **Mandarme avisos por Telegram**.
 
@@ -254,7 +259,11 @@ pulsa Guardar. **Borrar el token** lo quita de la placa y apaga los avisos. El t
 el respaldo, y "borrar la configuración" (BOOT 10 s) lo borra.
 
 Topes: un mensaje de prueba cada 30 s y como mucho 20 mensajes por hora entre todos. Si un aviso no
-puede salir (sin internet), no se vuelve a intentar; el panel muestra cómo salió el último.
+puede salir por algo pasajero (sin internet o sin memoria libre), se vuelve a intentar cada minuto,
+hasta 5 veces; si falla por otra cosa (token, chat), no. El panel muestra cómo salió el último.
+
+Mientras cambias las casillas o el chat de esta sección, el panel no los pisa al refrescarse:
+quedan como los dejaste hasta que pulses **Guardar**.
 
 ## Aparatos de la casa *(fase 5)*
 
@@ -482,7 +491,8 @@ Para borrar también la lista y las reglas: "borrar todo" en el instalador o `pi
 | `[web] <ip> bloqueada N s por contraseñas malas` | Bloqueo por intentos |
 | `[nube] aviso diario: ok` / `falló` *(fase 3)* | Salió el aviso diario (solo con "Compartir datos anónimos") |
 | `[nube] versión publicada: vX.Y.Z` / `no se pudo leer` *(fase 3)* | Consulta de versión (solo con "Avisarme de versiones nuevas") |
-| `[telegram] aviso: ok` / `token` / `chat` / `bloqueado` / `limite` / `sin_internet` / `rechazado` | Cómo salió un aviso por Telegram (nunca sale el token ni el texto) |
+| `[telegram] aviso: ok` / `token` / `chat` / `bloqueado` / `limite` / `sin_internet` / `poca_ram` / `sin_datos` / `rechazado` | Cómo salió un aviso por Telegram (nunca sale el token ni el texto). Con « (se reintenta en 1 min)», vuelve a la cola |
+| `[telegram] no se pudo guardar el día del resumen` | La NVS no guardó el día del resumen semanal; igual no se repite hasta reiniciar |
 | `[telegram] token borrado` | Se pulsó «Borrar el token» |
 | `STATS,<consultas>,<bloqueadas>,<dominios>,<ram_libre>` | Cada 5 s, para leerlo desde otra placa |
 | Bytes que empiezan con `IMPROV` | Respuestas de Improv para el instalador; se pueden ignorar |

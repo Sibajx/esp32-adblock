@@ -111,8 +111,10 @@ Solo contadores y el estado de la placa; no dice qué visitó cada aparato.
 | `schedule` *(fase 5)* | Consultas que cortó un horario (van aparte de `blocked`) |
 
 Las preguntas por `resolver.arpa` (DDR, RFC 9462: `_dns.resolver.arpa` tipo `SVCB`) se contestan
-en la placa con NOERROR sin respuestas, nunca se reenvían y no suman a `forwarded`, `blocked`,
-`canary` ni `relay` (no tienen contador propio). Ver [dns.md](dns.md#2b-nombres-especiales-fase-2).
+en la placa con NOERROR sin respuestas y nunca se reenvían. Suman a `queries` (como toda consulta
+que llega) y a las consultas del aparato en la tabla por aparato, sin contar como bloqueadas; no
+suman a `forwarded`, `answered`, `cached`, `blocked`, `schedule`, `canary` ni `relay` (no tienen
+contador propio) ni a la historia de 168 h. Ver [dns.md](dns.md#2b-nombres-especiales-fase-2).
 
 ### `POST /api/setup` (crear la contraseña en el primer uso)
 Pide `Host` válido y `X-Requested-With: adblock`, pero no sesión. Campo: `password`.
@@ -373,9 +375,12 @@ La lista de la comunidad se revisa en la placa con `siblock::CommunityParser`
 (`lib/siblock_core/community.*`), todo o nada: un solo objeto JSON; `version` entero de 0 a
 4294967295; `dominios` lista de textos que pasan `validReportDomain`, como mucho 500; cada clave una
 sola vez; otras claves se saltan si su valor es texto, número, `true`, `false` o `null`; textos sin
-`\`; como mucho 32 KB. En la placa quedan solo las huellas (FNV-1a de 64 bits, 8 B por sitio) en
-RAM y en `/comunidad.bin` (`"SBC1"`, versión, `communityUpdated`, cantidad y las huellas ordenadas;
-≤ 4016 B; se escribe en `/comunidad.new` y se renombra).
+`\`; como mucho 32 KB. En la placa quedan solo las huellas (SipHash-2-4 de 64 bits con una llave
+de 16 B al azar de la placa, `esp_random`, nueva en cada bajada; 8 B por sitio) en RAM y en
+`/comunidad.bin` (`"SBC2"`, versión, `communityUpdated`, cantidad, la llave y las huellas ordenadas;
+≤ 4032 B; se escribe en `/comunidad.new` y se renombra). Con la llave, nadie puede buscar de
+antemano un subdominio de anuncios con la misma huella que un sitio aprobado. Un `/comunidad.bin`
+viejo (`"SBC1"`, huellas sin llave) no se lee: la placa queda sin permitidos hasta la próxima bajada.
 
 En la búsqueda (`BlockList::check`) el orden es: `ALLOWLIST` → tu «Permitir» → pausa → tu
 «Bloquear» → lista. Si la lista lo bloquearía y está en los permitidos de la comunidad (el sitio o
@@ -441,10 +446,10 @@ por la serie, no va en el respaldo ni se acepta al subirlo, y "borrar la configu
 | `tokenSaved` | ¿Hay token guardado? (NVS `tg_token`). El token mismo nunca sale |
 | `chat` | Número de chat guardado (NVS `tg_chat`), `""` si no hay. Solo `[-0-9]` |
 | `reboot`, `listFail`, `weekly` | Qué avisos (NVS `tg_ev`, bits 1, 2 y 4; si falta, los tres) |
-| `last` | Cómo salió el último envío: `never`, `ok`, `token` (401 o 404), `chat` (400), `bloqueado` (403: el bot no puede escribirte), `limite` (429 de Telegram o el tope de la placa), `sin_internet` (sin WiFi, sin RAM para TLS, tiempo agotado) o `rechazado` (otro código). Solo en RAM |
+| `last` | Cómo salió el último envío: `never`, `ok`, `token` (401 o 404), `chat` (400), `bloqueado` (403: el bot no puede escribirte), `limite` (429 de Telegram o el tope de la placa), `sin_internet` (sin WiFi, sin conexión, tiempo agotado; se reintenta), `poca_ram` (poca RAM seguida para TLS; se reintenta), `sin_datos` (el token o el chat guardados faltan o no valen) o `rechazado` (otro código). Solo en RAM |
 | `lastCode` | Código HTTP de ese envío (`0` si no se llegó) |
 | `lastAt` | Segundos desde 1970 de ese envío (`0` si nunca o sin hora) |
-| `pending` | Hay un mensaje de prueba esperando su turno |
+| `pending` | Hay un mensaje de prueba esperando su turno (también mientras espera un reintento) |
 
 #### `POST /api/telegram` 🔒
 
@@ -480,14 +485,16 @@ Funciona aunque `on` esté apagado (lo pide el dueño a mano).
 | Aviso | Texto (ejemplo) | Cuándo |
 |---|---|---|
 | La placa se reinició | «SiBlock se reinició (corte de luz o la desconectaron). Lista: 152 340 sitios.» | Una vez por arranque, con WiFi y hora de internet. El motivo sale de `esp_reset_reason()`: corte de luz, reinicio normal, tuvo una falla y se recuperó sola, bajó la corriente; y «actualización» si la versión cambió desde el arranque anterior (NVS `tg_fw`, que solo se escribe con los avisos encendidos) |
-| La lista no se pudo actualizar | «SiBlock no pudo actualizar la lista desde hace 2 días. Sigue usando la que tiene (152 340 sitios).» | A la tercera falla seguida (la primera y los reintentos de 1 y 5 min) y luego como mucho una vez cada 24 h mientras siga fallando. Si se avisó y vuelve a funcionar: «SiBlock ya pudo actualizar la lista: …» (`siblock::ListFailWatch`) |
-| Resumen semanal | «Resumen de la semana: 12 345 anuncios y rastreadores bloqueados.» | Domingo de 20:00 a 23:59 en la hora de la casa (la zona que guardan los horarios; sin horarios, UTC). Una vez por semana (NVS `tg_week`). Sin hora de internet, no. Suma las bloqueadas de la historia de 168 h |
+| La lista no se pudo actualizar | «SiBlock no pudo actualizar la lista desde hace 2 días. Sigue usando la que tiene (152 340 sitios).» (con menos de un día no dice «desde hace…») | A la tercera falla seguida de los intentos automáticos (la primera y los reintentos de 1 y 5 min) y luego como mucho una vez cada 24 h mientras siga fallando. Las fallas de «Actualizar ahora» no cuentan; si «Actualizar ahora» sale bien, sí. Si se avisó y vuelve a funcionar: «SiBlock ya pudo actualizar la lista: …» (`siblock::ListFailWatch`) |
+| Resumen semanal | «Resumen de la semana: 12 345 anuncios y rastreadores bloqueados.» | Domingo de 20:00 a 23:59 en la hora de la casa (la zona que guardan los horarios; sin horarios, UTC). Una vez por semana (NVS `tg_week`; si la NVS no deja guardarlo, la RAM se acuerda hasta reiniciar: `siblock::WeeklyOnce`). Sin hora de internet, no. Suma las bloqueadas de la historia de 168 h |
 
 Reglas para todos: salen desde `loop()` (nunca desde la tarea DNS ni dentro de una petición del
 panel), uno por vuelta, con WiFi, con hora de internet, nunca mientras se baja la lista, y como
 mucho **20 por hora** entre todos (`siblock::SendLimiter`; el 21 queda como `limite` sin salir). Un
-envío que falla no se reintenta. Por la serie sale `[telegram] aviso: <last>` (sin el token ni el
-texto).
+envío que falla por algo pasajero (`sin_internet` o `poca_ram`) vuelve a la cola y se reintenta al
+minuto, como mucho 5 veces por aviso (`siblock::TelegramRetry`); cada intento cuenta en los 20 por
+hora. Los demás resultados no se reintentan. Por la serie sale `[telegram] aviso: <last>` (con
+« (se reintenta en 1 min)» si vuelve a la cola; sin el token ni el texto).
 
 ### Del panel a la página *(fase 3)*
 El panel no manda correos ni su diagnóstico a internet. Abre la página con los datos **en el
@@ -805,7 +812,7 @@ Errores (siempre `{"error":"<código>"}`):
 | 403 | `origen` | `Origin` de otra página |
 | 403 | `turnstile` | Falta Turnstile o no es válido (página y Contáctanos) |
 | 403 | `acceso` | Rutas del dueño sin Access válido |
-| 409 | `tope` | Aprobar un permitido con la lista llena (500) |
+| 409 | `tope` | Aprobar un permitido con la lista llena (500 sitios o 30 000 B de nombres) |
 | 404 | `no_existe` | Ruta desconocida |
 | 405 | `metodo` | Método que la ruta no acepta (p. ej. `GET /api/v1/contacto`) |
 | 413 | `grande` | Cuerpo más grande que el tope de la ruta |
@@ -942,9 +949,12 @@ pregunta, y no guarda nada. La bajan solo las placas con «Usar los permitidos d
 ```
 
 - `version`: entero que sube cada vez que la lista cambia (aprobar o quitar); `0` si nunca cambió.
-  Sale de la tabla `permitidos_version`.
-- `dominios`: en orden alfabético, como mucho 500, cada uno con la misma regla que los reportes
-  (`esDominio`).
+  Sale de la tabla `permitidos_version`, que suben disparadores de D1 en la misma sentencia que
+  cambia `permitidos` (`migrations/0004_permitidos_version.sql`): no puede quedar una lista nueva
+  con la versión vieja.
+- `dominios`: en orden alfabético, como mucho 500 y como mucho 30 000 B de nombres (cada uno
+  cuenta su largo + 3: comillas y coma), así el cuerpo no pasa de los 32 KB que acepta la placa;
+  cada uno con la misma regla que los reportes (`esDominio`).
 - `Cache-Control: public, max-age=600`. Se guarda en la caché del borde con una llave fija (igual
   que `/estadisticas`); aprobar o quitar borra la copia de ese borde, y las de los demás vencen
   solas en 10 min.
@@ -955,8 +965,13 @@ Solo el dueño (mismo Access y JWT que el resumen, debajo). Cuerpo `{"dominio":"
 tope de 512 B. El dominio sigue la regla de los reportes; si no → **400** `datos`.
 
 - Aprobar: **200** `{"ok":true}` y una fila en `permitidos` con el día de hoy; si ya estaba, 200 sin
-  cambiar nada (la versión no sube). Con 500 sitios → **409** `tope` (el tope va en la misma
-  sentencia SQL, así dos aprobaciones a la vez no lo pasan).
+  cambiar nada (la versión no sube). Con 500 sitios, o si los nombres pasarían de 30 000 B →
+  **409** `tope` (los dos topes van en la misma sentencia SQL, así dos aprobaciones a la vez no los
+  pasan). Un sufijo público o un servicio donde cualquiera tiene su sitio → **400** `sufijo`:
+  `com.mx`, `co.uk`, `gob.mx`, `github.io`, `blogspot.com`, `amazonaws.com`, `pages.dev`,
+  `vercel.app`, `cdn.cloudflare.net` y otros de la lista `SUFIJOS` de `cloud/src/permitidos.ts`, y
+  cualquier `co|com|org|gob|gov|edu|net|ac|mil` + país de 2 letras (`com.zz`, `org.ar`…). Aprobar uno
+  de esos dejaría pasar los subdominios de miles de desconocidos en todas las placas.
 - Quitar: **200** `{"ok":true}`, también si no estaba (entonces la versión no sube).
 - Sin JWT válido → **403** `acceso`; con `Origin` de otra página → **403** `origen`.
 
@@ -971,7 +986,8 @@ vacías → **403** `acceso`.
 {"embudo":[{"paso":"entro","n":120},{"paso":"conecto","n":80},"…"],
  "temas":[{"tema":"no_instala","n":3},"…"],
  "motivos":[{"motivo":"pagina_no_abre","n":5},"…"],
- "bloqueos":[{"dominio":"ads.ejemplo.com","n":4,"aprobado":false}],
+ "bloqueos":[{"dominio":"ads.ejemplo.com","n":4,"aprobado":false},
+             {"dominio":"cdn.tienda.ejemplo.com","n":2,"aprobado":true,"cubiertoPor":"tienda.ejemplo.com"}],
  "guiasFaltan":[{"fabricante":"proveedor","n":6}],
  "placasTotal":40,
  "permitidos":[{"dominio":"tienda.ejemplo.com","desde":"2026-11-21"}]}
@@ -979,7 +995,9 @@ vacías → **403** `acceso`.
 
 - `embudo`, `temas` y `motivos`: últimos 30 días, en el orden de las listas fijas (con 0 si no hay).
 - `bloqueos`: los 50 dominios más reportados como "no debió bloquearse", de más a menos; `aprobado`
-  dice si ya está en los permitidos de la comunidad.
+  dice si ya pasa en las placas: está en los permitidos de la comunidad, o lo está uno de sus padres
+  (como en las placas, `x.com` cubre `cdn.x.com`). Si lo cubre un padre, viene además
+  `cubiertoPor` con ese padre (el más largo si hay varios) y la página dice «cubierto por x.com».
 - `permitidos`: la lista de permitidos de la comunidad entera (en orden), con el día en que se
   aprobó cada sitio.
 - `guiasFaltan`: reportes de módem con `menu=otro`, `fabricante=no-se` o `dns_ok` = no, por

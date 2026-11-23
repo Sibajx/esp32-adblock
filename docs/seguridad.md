@@ -233,17 +233,33 @@ todas las casas que la usan vuelvan a ver un sitio de anuncios o de estafas. Có
   aprueba a mano en `dueno.html`, detrás de Cloudflare Access **y** del JWT revisado en el Worker
   (`POST /api/v1/dueno/permitidos` y `/quitar`; 403 sin JWT válido, 403 con `Origin` de otra página).
   Muchos reportes falsos de un sitio de anuncios solo lo suben en la lista para revisar.
+- **Nada de sufijos públicos.** Aprobar `x.com` deja pasar también todos sus subdominios en todas las
+  placas. Por eso el Worker rechaza (400 `sufijo`) los sufijos públicos y servicios donde cualquiera
+  tiene su sitio (`com.mx`, `co.uk`, `github.io`, `blogspot.com`, `amazonaws.com`,
+  `cdn.cloudflare.net`…, y cualquier `com|co|org|gob|gov|edu|net|ac|mil` + país), y la página del
+  dueño avisa junto a «Aprobar»: «Aprueba solo sitios concretos; esto deja pasar también sus
+  subdominios en todas las placas». En la lista para revisar, un subdominio de algo ya aprobado sale
+  como «cubierto por x.com», así se ve qué deja pasar cada aprobación.
 - **Topes y validación, todo o nada.** El Worker acepta solo dominios con la misma regla que los
-  reportes (`esDominio`) y como mucho 500 (409 `tope`). La placa vuelve a revisar todo: cuerpo de
+  reportes (`esDominio`) y como mucho 500 sitios y 30 000 B de nombres (409 `tope`; el cuerpo
+  público nunca pasa de los 32 KB que acepta la placa). La versión la suben disparadores de D1 en la
+  misma sentencia que cambia la lista, así nunca queda una lista nueva con la versión vieja. La
+  placa vuelve a revisar todo: cuerpo de
   32 KB como mucho, leído de a pedazos (nunca entero en la RAM), JSON estricto, versión entera,
   cada dominio con `validReportDomain` y 500 como mucho. Si algo no cuadra se rechaza la lista
   entera y se queda la anterior (pruebas en `test_host` y 18f).
 - **Lo tuyo gana.** Tus reglas «Bloquear» se revisan antes que la comunidad (también si bloqueas
   el dominio de arriba). La comunidad **no** salta la protección anti-rebinding: eso solo lo hace tu
   «Permitir». En las consultas recientes sale como `comunidad`, nunca como `permitido` (lo tuyo).
-- **Aparte de tus reglas.** En la placa solo hay huellas de 64 bits (FNV-1a) en RAM y en
-  `/comunidad.bin` (≤ 4016 B, guardado atómico); no salen en «Mis reglas» ni en el respaldo. Apagar
-  la opción o borrar la configuración la borra.
+- **Aparte de tus reglas.** En la placa solo hay huellas de 64 bits en RAM y en `/comunidad.bin`
+  (≤ 4032 B, guardado atómico); no salen en «Mis reglas» ni en el respaldo. Apagar la opción o
+  borrar la configuración la borra.
+- **Huellas con llave.** La huella es SipHash-2-4 con una llave de 16 B al azar (`esp_random`) de
+  cada placa, nueva en cada bajada y guardada en `/comunidad.bin` (`SBC2`). Con una huella fija
+  (FNV-1a, igual en todas las placas, como antes) alguien podía buscar un subdominio de anuncios que
+  diera la misma huella que un sitio aprobado y saltarse SiBlock en todas las casas que usan la
+  lista. Un archivo viejo `SBC1` no se lee: se baja la lista otra vez (pruebas en `test_host`, con
+  los vectores de SipHash, y 18f).
 - Riesgo que queda: si alguien entra a la cuenta de Cloudflare del dueño o a su correo (Access),
   puede aprobar sitios. Lo limita el tope de 500 y que cada casa decide si usa la lista.
 
@@ -331,8 +347,8 @@ poner el correo de otra persona para que SiBlock le mande correos.
   JWT: RS256 (rechaza `alg:none` y otros), llave del equipo por `kid`, `aud` = `ACCESS_AUD`,
   `iss` = `ACCESS_TEAM_DOMAIN`, `exp` y `nbf` con 60 s de holgura. Si faltan las variables → 403
   siempre (falla cerrado).
-- El resumen solo trae conteos, los dominios reportados (y si ya están aprobados) y la lista de
-  permitidos; nada de IPs ni números.
+- El resumen solo trae conteos, los dominios reportados (y si ya están aprobados o cubiertos por un
+  padre aprobado) y la lista de permitidos; nada de IPs ni números.
 - Aprobar y quitar permitidos son POST: además de Access y el JWT, piden `Origin` de la página (o
   ninguno), así otra página no puede usar la sesión del dueño.
 
@@ -517,9 +533,12 @@ escritura**:
   contesta (el DNS sí, ver [arquitectura.md](arquitectura.md#tareas-y-concurrencia)).
 - Topes: un mensaje de prueba cada 30 s (**429** `espera`) y **20 por hora** entre todos; el que se
   pasa no sale y queda como `limite` (prueba 18g). La lista que falla avisa a la tercera falla y
-  luego una vez cada 24 h; el reinicio, una vez por arranque; el resumen, una vez por semana
-  (marca en la NVS).
-- Un envío que falla no se reintenta.
+  luego una vez cada 24 h (solo cuentan los intentos automáticos: pulsar «Actualizar ahora» no lo
+  adelanta); el reinicio, una vez por arranque; el resumen, una vez por semana (marca en la NVS y
+  en la RAM: si la NVS no deja guardarla, no se repite cada minuto).
+- Un envío que falla por algo pasajero (`sin_internet`, `poca_ram`) vuelve a la cola y se reintenta
+  al minuto, como mucho 5 veces por aviso, y cada intento cuenta en los 20 por hora. Lo demás
+  (`token`, `chat`, `bloqueado`, `sin_datos`…) no se reintenta: reintentar no lo arregla.
 
 ## Riesgos aceptados
 

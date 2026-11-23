@@ -124,16 +124,18 @@ Hewlett Packard Enterprise, «Brother, Brother & Sons», `00:00:00` y un prefijo
 sin marca; `ouiLabel` fuera de rango → nada. El generador tiene sus propias pruebas con un CSV
 chico: `python3 tools/test_gen_oui.py` (reglas, orden, excluidos, encabezado con fuente y sha256).
 
-Permitidos de la comunidad, `testCommunity` (`community.*`): FNV-1a de 64 bits contra valores
-conocidos; el JSON del Worker leído entero, de a 1 byte y de a 3 (mismo resultado, sin repetidos,
+Permitidos de la comunidad, `testCommunity` (`community.*`): SipHash-2-4 contra los vectores del
+artículo original (llave 00..0f; 0, 1, 7, 8, 15 y 63 bytes); otra llave da otra huella y las huellas
+no valen con otra llave; el JSON del Worker leído entero, de a 1 byte y de a 3 (mismo resultado, sin repetidos,
 ordenado); sitio y subdominios sí, padre y parecidos (`aa.ejemplo.com`, `a.ejemplo.com.mx`) no;
 lista vacía, espacios, claves de más que se saltan; más de 30 cuerpos malos que se rechazan enteros
 (sin cerrar, basura después, comas de más, versión como texto, negativa, con cero delante, decimal o
 de 4294967296, claves repetidas, `dominios` que no es lista, número dentro, mayúsculas, `com`, `a..com`,
 espacio, escapes `\u`, objeto o lista en una clave de más, control dentro de un texto); texto de 400
 en una clave de más sí, dominio de 254 no; 500 sitios sí y 501 no; 32 KB justos sí y uno más no; lo
-que llega después de un error no lo arregla; `/comunidad.bin` ida y vuelta, vacío, y cortado, de
-más, otra cabecera, desordenado, repetido o con 501 → se ignora.
+que llega después de un error no lo arregla; `/comunidad.bin` (`SBC2`, con la llave en la
+cabecera) ida y vuelta, vacío, y cortado, de más, `SBC1` (huellas viejas sin llave), otra cabecera,
+desordenado, repetido o con 501 → se ignora.
 
 Avisos por Telegram, `testNotify` (`notify.*`): token (5 y 12 dígitos, 30 y 64 letras; 4 o 13
 dígitos, 29 o 65 letras, sin `:`, con `/`, `?`, espacio, salto de línea, `ñ` o `\0` → no) y chat
@@ -142,8 +144,12 @@ dígitos, 29 o 65 letras, sin `:`, con `/`, `?`, espacio, salto de línea, `ñ` 
 muchas, prueba) y que ninguno trae algo con forma de IP o de dirección; el formulario codificado (el
 texto no puede meter otro campo); el domingo de 20:00 a 23:59 en UTC, UTC−6 y UTC+3 (19:59, lunes
 00:00 y sábado no; sin hora → −1); códigos de Telegram → nombre; tope de 20 por hora y uno cada
-30 s, también cuando `millis()` da la vuelta; y `ListFailWatch` (a la tercera falla, no otra vez
-antes de 24 h, «ya pudo» solo si se avisó, apagado no cuenta como avisado).
+30 s, también cuando `millis()` da la vuelta; `poca_ram` y `sin_datos` con nombre propio y cuáles
+son pasajeros; `TelegramRetry` (uno por minuto, como mucho 5 por aviso, cada aviso con su cuenta,
+también cuando `millis()` da la vuelta); `WeeklyOnce` (una vez por día aunque la NVS no guarde); y
+`ListFailWatch` (a la tercera falla, no otra vez antes de 24 h, «ya pudo» solo si se avisó, apagado
+no cuenta como avisado, las fallas de «Actualizar ahora» no cuentan y su acierto sí, nunca «desde
+hace 0»).
 
 `list_stats` es una herramienta aparte: cuenta dominios únicos de las listas reales y calcula
 falsos positivos.
@@ -270,7 +276,9 @@ pkill -x esp32-sim                              # nunca pkill -f
     18f. permitidos de la comunidad: `community=1` (sin encender «compartir») → al minuto
     `GET /api/v1/permitidos` sin cuerpo ni número; `doubleclick.net` (en la lista) y sus
     subdominios pasan, y el registro dice `comunidad` y no `permitido`; `communityCount` y
-    `communityUpdated`; `/comunidad.bin` con 2 huellas; no salen en `/api/rules` ni en el
+    `communityUpdated`; `/comunidad.bin` `SBC2` con una llave al azar y 2 huellas que no son FNV-1a;
+    un `/comunidad.bin` `SBC1` al arrancar no se usa (sigue bloqueado, `communityCount` 0); no salen
+    en `/api/rules` ni en el
     respaldo; tu «Bloquear» gana (y dice `tuyo`) y al quitarlo vuelve a pasar; una lista mal
     hecha se rechaza y queda la anterior; tras reiniciar (con la nube en 500) se usa la guardada;
     `community=0` vuelve a bloquear, borra el archivo y deja 25 h sin pedir la lista.
@@ -282,7 +290,9 @@ pkill -x esp32-sim                              # nunca pkill -f
     mensaje de prueba sale con `chat_id` y `text` exactos, como formulario, sin IPs, MACs ni el WiFi;
     otra prueba enseguida → 429; Telegram 401/400/403/500 → `token`/`chat`/`bloqueado`/`rechazado`
     sin repetir lo que contestó; el envío 21 de la hora no sale (`limite`) y una hora después sí;
-    encendido, la lista que falla avisa a la tercera falla y no repite a la cuarta; el respaldo no
+    encendido, «Actualizar ahora» que falla (3 veces) no avisa, el intento automático sí (sin
+    «desde hace 0») y no repite a la cuarta; sin `SIM_TELEGRAM_URL` la prueba da `sin_internet`,
+    sigue en la cola y se reintenta al minuto 5 veces (no antes) y después se deja; el respaldo no
     trae token ni chat y uno con una línea `telegram` se rechaza; ninguna respuesta del panel trae
     el token; reinicio con `SIM_RESET_REASON=panic` → «tuvo una falla y se recuperó sola», uno
     solo; con otra versión en `tg_fw` → «actualización»; con «La placa se reinició» apagado no
@@ -482,7 +492,15 @@ cd site && npm test     # = node --test tests/*.test.mjs: instalar.js, improv-li
   como texto, semanas cortas; la guía del router elige el país que da `/api/v1/pais`; panel del
   dueño: «Aprobar» o «Quitar» por sitio reportado (un nombre raro no se puede aprobar), la lista de
   permitidos con «Quitar», `esDominio` igual al del Worker, el pedido (`same-origin`, sin seguir
-  redirecciones), los errores (`tope`, sesión vencida, sin red) y que tras aprobar se vuelve a cargar;
+  redirecciones), los errores (`tope`, `sufijo`, sesión vencida, sin red) y que tras aprobar se vuelve
+  a cargar; un subdominio de un sitio aprobado dice «cubierto por …» sin botón (y un `cubiertoPor`
+  que no es su padre no se cree); `dueno.html` avisa junto a «Aprobar» que se dejan pasar los
+  subdominios;
+- `panel-tarjetas.test.mjs`: corre el código de las tarjetas «Compartir con SiBlock» y «Avisos por
+  Telegram» de `src/web_page.h` con un DOM de mentira: la consulta de cada minuto no pisa casillas
+  ni chat sin guardar, ni una opción mientras se guarda; «Guardar» limpia y luego se ve lo de la
+  placa; si «Guardar» falla, lo elegido se queda; `poca_ram`, `sin_datos` y `sin_internet` tienen
+  texto;
 - `paginas.test.mjs` suma: todas las páginas cargan `js/inicio.js`, enlazan a
   `privacidad.html` y la CSP tiene los orígenes de Web Analytics y Turnstile.
 
@@ -521,7 +539,7 @@ crean en una D1 local con las migraciones de `cloud/migrations/`.
 | `placas.test.ts` | Bloqueo en mayúsculas → 400, uno por número y dominio, aviso de placa (el último del día gana), `b` y `v` malos, embudo que suma |
 | `estadisticas.test.ts` | Umbral de 5 por país y `otros`, placa de hace 7 días fuera, umbral de 3 por módem, `otro` y `dns_ok:0` fuera, siempre 12 semanas |
 | `access.test.ts`, `dueno.test.ts` | JWT con un par RSA de prueba: bueno, vencido, otra `aud`, otro `iss`, otra llave, `alg:none`, sin header, variables vacías; resumen en orden y top 50 |
-| `permitidos.test.ts` | Lista pública vacía (versión 0, `public, max-age=600`, sin cookies), en orden y con la versión que sube; caché del borde que se borra al aprobar; aprobar y quitar sin JWT o con `Origin` ajeno → 403; aprobar dos veces no sube la versión; dominios malos → 400; tope de 500 → 409 `tope` (uno que ya estaba sí); 513 B → 413; quitar uno que no estaba → 200; resumen con `aprobado` y la lista con su fecha |
+| `permitidos.test.ts` | Lista pública vacía (versión 0, `public, max-age=600`, sin cookies), en orden y con la versión que sube; caché del borde que se borra al aprobar; aprobar y quitar sin JWT o con `Origin` ajeno → 403; aprobar dos veces no sube la versión; dominios malos → 400; tope de 500 → 409 `tope` (uno que ya estaba sí); tope de 30 000 B de nombres → 409 `tope` sin subir la versión (uno corto todavía cabe; el JSON queda bajo 32 KB); sufijos públicos (`com.mx`, `github.io`, `com.zz`…) → 400 `sufijo` y un sitio concreto debajo sí; la versión la suben los disparadores (también sin la fila de la versión, con cambios hechos a mano en D1, y no con un reintento de lo ya aprobado) y un batch que falla no cambia ni la lista ni la versión; 513 B → 413; quitar uno que no estaba → 200; resumen con `aprobado` y la lista con su fecha; un subdominio de un sitio aprobado sale `aprobado` con `cubiertoPor` (y `ox.ejemplo.com` o el padre no) |
 | `contacto.test.ts` | Dos correos (dueño y respuesta), asunto sin texto de la persona, sin `<script>`, respuesta sin nombre ni mensaje, correo con `\r\n`, mensaje de 9 o 2001, tema raro, sin Turnstile, tope de 200, respuesta apagada, correo que falla → 500 sin contar, `sinHtml` |
 | `limpieza.test.ts` | Filas de hace 401 días se borran, las de 399 se quedan |
 
