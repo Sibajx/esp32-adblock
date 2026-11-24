@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { puedeInstalar, prepararPagina } from '../js/instalar.js';
+import { puedeInstalar, prepararPagina, soloPlacas, FILTROS_PLACA } from '../js/instalar.js';
 
 function docFalso() {
   const els = {
@@ -179,4 +179,52 @@ test('conectarRespaldo: si la placa tarda, dice que se está preparando', async 
   assert.equal(visto, TEXTO_PREPARANDO);
   assert.match(visto, /par de minutos/);
   assert.equal(doc.els['respaldo-clave'].textContent, 'abcdefghjk');
+});
+
+function serialFalso(respuestas) {
+  const llamadas = [];
+  return {
+    llamadas,
+    nav: { serial: { requestPort: async (op) => {
+      llamadas.push(op);
+      const r = respuestas.shift();
+      if (r instanceof Error) throw r;
+      return r;
+    } } },
+  };
+}
+const cancelado = () => Object.assign(new Error('x'), { name: 'NotFoundError' });
+
+test('soloPlacas: la lista muestra solo chips de placa (CH340, CP210x...)', async () => {
+  const { nav, llamadas } = serialFalso(['puerto']);
+  assert.equal(soloPlacas(nav), true);
+  assert.equal(await nav.serial.requestPort(), 'puerto');
+  assert.deepEqual(llamadas[0].filters, FILTROS_PLACA);
+  assert.ok(FILTROS_PLACA.some((f) => f.usbVendorId === 0x1a86), 'CH340');
+  assert.ok(FILTROS_PLACA.some((f) => f.usbVendorId === 0x10c4), 'CP210x');
+});
+
+test('soloPlacas: si cierra la lista sin elegir, la siguiente vez salen todos los puertos', async () => {
+  const { nav, llamadas } = serialFalso([cancelado(), 'puerto']);
+  soloPlacas(nav);
+  await assert.rejects(nav.serial.requestPort(), { name: 'NotFoundError' });
+  assert.equal(await nav.serial.requestPort(), 'puerto');
+  assert.equal(llamadas[1]?.filters, undefined);
+});
+
+test('soloPlacas: otro error no quita el filtro; filtros propios se respetan', async () => {
+  const otro = Object.assign(new Error('y'), { name: 'SecurityError' });
+  const propios = [{ usbVendorId: 1 }];
+  const { nav, llamadas } = serialFalso([otro, 'a', 'b']);
+  soloPlacas(nav);
+  await assert.rejects(nav.serial.requestPort(), { name: 'SecurityError' });
+  await nav.serial.requestPort();
+  assert.deepEqual(llamadas[1].filters, FILTROS_PLACA);
+  await nav.serial.requestPort({ filters: propios });
+  assert.equal(llamadas[2].filters, propios);
+});
+
+test('soloPlacas: sin WebSerial no hace nada', () => {
+  assert.equal(soloPlacas({}), false);
+  assert.equal(soloPlacas(undefined), false);
 });

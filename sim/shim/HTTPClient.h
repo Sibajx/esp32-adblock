@@ -3,6 +3,7 @@
 // Nube: si existe SIM_CLOUD_URL (p. ej. http://127.0.0.1:9000), una URL que empieza con
 // https://siblock.s-dev.win se manda a ese prefijo (el firmware no sabe del simulador) y no le
 // afecta SIM_HTTP_FAIL. Sin SIM_CLOUD_URL, el simulador nunca llama al siblock.s-dev.win de verdad.
+// Con SIM_CLOUD_TLS_FILTRO la nube no contesta y el cliente queda con el error de certificado.
 // Cada petición a la nube se anota en el registro: "[sim] nube <MÉTODO> <ruta>".
 // Telegram: igual con SIM_TELEGRAM_URL para https://api.telegram.org; sin ella nunca sale. Se anota
 // "[sim] telegram <MÉTODO> /bot<oculto>/<método>" (el token de la ruta no va al registro).
@@ -20,9 +21,16 @@ enum followRedirects_t { HTTPC_DISABLE_FOLLOW_REDIRECTS = 0, HTTPC_STRICT_FOLLOW
 
 #include "WiFiClient.h"
 
+// SIM_CLOUD_TLS_FILTRO=1: la nube falla como detrás de un FortiGate (certificado que no es el de
+// verdad, MBEDTLS_ERR_X509_CERT_VERIFY_FAILED). Las demás peticiones no cambian.
 class WiFiClientSecure : public WiFiClient {
  public:
   void setCACert(const char*) {}
+  int lastError(char* buf, size_t size) {
+    if (buf && size) buf[0] = 0;
+    return lastError_;
+  }
+  int lastError_ = 0;
 };
 
 class HTTPClient {

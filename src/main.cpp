@@ -10,6 +10,7 @@
 
 #include <atomic>
 
+#include "fs_util.h"
 #include "blocklist.h"
 #include "button.h"
 #include "cloud.h"
@@ -235,7 +236,7 @@ static void startTelegram() {
 
 static void loadHistory() {
   uint8_t buf[siblock::UsageHistory::kBytes];
-  fs::File f = LittleFS.open(kHistoryFile, FILE_READ);
+  fs::File f = fsu::openRead(kHistoryFile);
   if (!f) return;
   size_t n = f.size() == sizeof buf ? f.read(buf, sizeof buf) : 0;
   f.close();
@@ -251,11 +252,11 @@ static void saveHistory() {
   bool ok = f && f.write(buf, n) == n;
   if (f) f.close();
   if (ok && !LittleFS.rename(kHistoryTmp, kHistoryFile)) {
-    LittleFS.remove(kHistoryFile);  // por si alguna versión no pisa el destino
+    fsu::remove(kHistoryFile);  // por si alguna versión no pisa el destino
     ok = LittleFS.rename(kHistoryTmp, kHistoryFile);
   }
   if (!ok) {
-    LittleFS.remove(kHistoryTmp);
+    fsu::remove(kHistoryTmp);
     Serial.println("[uso] no se pudo guardar la historia");
   }
 }
@@ -382,9 +383,9 @@ static void watchButton(uint32_t now) {
       settings::factoryReset();
       family::erase();  // nombres de los aparatos y horarios (son datos de la familia)
       community::clear();
-      LittleFS.remove("/restore.tmp");
-      LittleFS.remove(kHistoryFile);
-      LittleFS.remove(kHistoryTmp);
+      fsu::remove("/restore.tmp");
+      fsu::remove(kHistoryFile);
+      fsu::remove(kHistoryTmp);
       WiFi.disconnect(true, true);  // y la copia del WiFi que pudiera tener el propio ESP32
       delay(100);
       ESP.restart();

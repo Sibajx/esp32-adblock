@@ -94,6 +94,11 @@
               <td>Los aparatos preguntan por IPv6 a otro DNS y se saltan SiBlock.</td>
               <td><span class="etiqueta etiqueta-detecta">Lo detecta</span> Si un aparato no llega, te sugiere apagar el DNS por IPv6 en el router.</td>
             </tr>
+            <tr id="filtro-red">
+              <th scope="row">Un filtro web en la red (FortiGate, Sophos, el antivirus del router) que bloquea sitios “sin clasificar”</th>
+              <td>No deja que SiBlock llegue a siblock.s-dev.win. El bloqueo de anuncios sigue funcionando; faltan los permitidos de la comunidad, el aviso de versiones y los reportes.</td>
+              <td><span class="etiqueta etiqueta-detecta">Lo detecta</span> Tu panel lo avisa. Pide a quien administra la red que permita <code>siblock.s-dev.win</code>; en un FortiGate, en su página de bloqueo puedes pedir que lo vuelvan a clasificar.</td>
+            </tr>
           </tbody>
         </table>
       </div>

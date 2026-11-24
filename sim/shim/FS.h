@@ -36,6 +36,8 @@ class FS {
   File open(const char* path, const char* mode);
   File open(const String& path, const char* mode) { return open(path.c_str(), mode); }
   bool remove(const char* path);
+  bool exists(const char* path) const;
+  bool exists(const String& path) const { return exists(path.c_str()); }
   bool remove(const String& path) { return remove(path.c_str()); }
   bool rename(const char* from, const char* to);
   bool mkdir(const char* path);

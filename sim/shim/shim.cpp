@@ -307,6 +307,10 @@ fs::File fs::FS::open(const char* path, const char* mode) {
   if (!f) return File();
   return File(std::shared_ptr<FILE>(f, fclose), path);
 }
+bool fs::FS::exists(const char* path) const {
+  struct stat st;
+  return ::stat(real(path).c_str(), &st) == 0;
+}
 bool fs::FS::remove(const char* path) { return ::remove(real(path).c_str()) == 0; }
 bool fs::FS::rename(const char* a, const char* b) { return ::rename(real(a).c_str(), real(b).c_str()) == 0; }
 bool fs::FS::mkdir(const char* path) { return ::mkdir(real(path).c_str(), 0755) == 0; }
@@ -514,6 +518,11 @@ int HTTPClient::run(const char* method, const std::string* body) {
     size_t slash = p == std::string::npos ? std::string::npos : url_.find('/', p + 3);
     Serial.printf("[sim] nube %s %s%s\n", method, slash == std::string::npos ? "/" : url_.c_str() + slash,
                   blocked_ ? " (sin SIM_CLOUD_URL: no sale)" : "");
+    if (getenv("SIM_CLOUD_TLS_FILTRO")) {
+      // La nube siempre se pide con WiFiClientSecure (src/cloud.cpp).
+      static_cast<WiFiClientSecure*>(client_)->lastError_ = -0x2700;
+      return -1;
+    }
     if (blocked_) return -1;
   } else if (telegram_) {
     // La ruta lleva el token (/bot<token>/sendMessage): en el registro va tapado.

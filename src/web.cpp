@@ -1,3 +1,4 @@
+#include "fs_util.h"
 #include "web.h"
 
 #include <WebServer.h>
@@ -893,7 +894,7 @@ fs::File gPartFile;
 
 void dropRestore() {
   if (gPartFile) gPartFile.close();
-  LittleFS.remove(kRestoreTmp);
+  fsu::remove(kRestoreTmp);
   gRestoreBytes = 0;
   gRestoreNext = -1;
 }
@@ -1097,6 +1098,8 @@ void sendCloudStatus() {
   j += st.community ? "true" : "false";
   j += ",\"communityCount\":" + String(unsigned(ci.count));
   j += ",\"communityUpdated\":" + String(unsigned(ci.updated));
+  j += ",\"filtro\":";
+  j += st.filtered ? "true" : "false";
   j += "}";
   sendJson(200, j);
 }
@@ -1371,7 +1374,7 @@ void begin(BlockList* list, DnsServer* dns, volatile bool* updateRequested, sibl
   gUpdateRequested = updateRequested;
   static const char* headers[] = {kCsrfHeader, "Authorization", kTokenHeader, kPartHeader, "User-Agent"};
   server.collectHeaders(headers, 5);
-  LittleFS.remove(kRestoreTmp);  // un respaldo a medias de antes de reiniciar no vale
+  fsu::remove(kRestoreTmp);  // un respaldo a medias de antes de reiniciar no vale
   server.on("/", HTTP_GET, guarded<false, handlePage>);
   server.on("/api/stats", HTTP_GET, guarded<false, handleStats>);
   server.on("/api/detail", HTTP_GET, guarded<true, handleDetail>);

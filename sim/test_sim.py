@@ -776,10 +776,11 @@ def nube_opciones():
             check(st.get("current") == "dev" and st.get("latest") == "" and st.get("update") is False and
                   st.get("lastPing") == "never", f"current=dev, latest vacío, update=false, lastPing=never ({st})")
             check(set(st) == {"share", "versionCheck", "installId", "current", "latest", "update", "lastPing",
-                              "community", "communityCount", "communityUpdated"},
+                              "community", "communityCount", "communityUpdated", "filtro"},
                   f"solo las claves del contrato ({sorted(st)})")
             check(st.get("community") is False and st.get("communityCount") == 0 and st.get("communityUpdated") == 0,
                   f"permitidos de la comunidad apagados y vacíos ({st})")
+            check(st.get("filtro") is False, f"sin filtro de red de fábrica ({st})")
             check(nube_estado(f, tok).get("installId") == iid and f.nvs().get("install_id") == iid,
                   "el número se guarda y no cambia")
             for malo in ({"share": "2"}, {"share": ""}, {"versionCheck": "si"}, {"share": "1", "versionCheck": "2"},
@@ -1069,6 +1070,32 @@ def nube_guardar_falla():
                   f"y en NVS no quedó nada encendido ({sorted(nvs)})")
             code, body, _ = f.http("POST", "/api/cloud", {"versionCheck": "1"}, token=tok)
             check(code == 200 and json.loads(body).get("versionCheck") is True, f"solo versionCheck sí se guarda ({code})")
+
+
+def nube_filtro_red():
+    print("\n18e2. Una red que cambia el certificado de siblock.s-dev.win (FortiGate) se avisa en el panel")
+    with NubeFalsa() as nube:
+        env = {"SIM_CLOUD_URL": nube.url, "SIM_CLOUD_TLS_FILTRO": "1"}
+        with Fresh(nvs=SEED_WIFI, env=env, clock_ms=0) as f:
+            tok = crear_clave(f, "clave-de-la-nube-6")
+            check(nube_estado(f, tok).get("filtro") is False, "sin pedir nada a la nube, no hay aviso")
+            code, _, _ = f.http("POST", "/api/cloud", {"versionCheck": "1"}, token=tok)
+            check(code == 200, f"versionCheck=1 -> 200 ({code})")
+            f.set_clock(61000)  # la consulta de versión sale al minuto
+            check(esperar(lambda: nube_estado(f, tok).get("filtro") is True, 15),
+                  "la consulta de versión choca con el filtro -> filtro:true")
+            check(b"[nube] la red cambi\xc3\xb3 el certificado de siblock.s-dev.win" in f.output(),
+                  "y se anota una vez en el registro")
+            check(len(nube.lista()) == 0, "nada llegó a la nube")
+            st = nube_estado(f, tok)
+            check(st.get("latest") == "" and st.get("update") is False, f"sin versión leída ({st})")
+    with NubeFalsa() as nube:
+        with Fresh(nvs=SEED_WIFI, env={"SIM_CLOUD_URL": nube.url}, clock_ms=0) as f:
+            tok = crear_clave(f, "clave-de-la-nube-7")
+            f.http("POST", "/api/cloud", {"versionCheck": "1"}, token=tok)
+            f.set_clock(61000)
+            check(esperar(lambda: len(nube.lista()) > 0, 15), "en una red normal la consulta sí llega")
+            check(nube_estado(f, tok).get("filtro") is False, "y no hay aviso de filtro")
 
 
 def nube_comunidad():
@@ -1471,6 +1498,7 @@ def nube():
     nube_panel()
     nube_borrar()
     nube_guardar_falla()
+    nube_filtro_red()
     nube_comunidad()
     nube_telegram()
 

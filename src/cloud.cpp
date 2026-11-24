@@ -14,6 +14,26 @@ constexpr size_t kMaxVersionBody = 1024;
 // tamaño ni se intenta (la descarga de la lista tiene el mismo tope).
 constexpr uint32_t kMinFreeBlock = 32 * 1024;
 
+// MBEDTLS_ERR_X509_CERT_VERIFY_FAILED: el apretón de manos llegó, pero el certificado no es de una
+// de las raíces de certs.h. Es lo que deja un filtro que intercepta HTTPS (FortiGate y parecidos).
+constexpr int kCertVerifyFailed = -0x2700;
+// Antes de 2024 la hora no está puesta y cualquier certificado parece vencido: eso no es un filtro.
+constexpr time_t kClockSet = 1704067200;
+
+// code: lo que devolvió GET/POST. Solo una respuesta HTTP limpia el aviso; solo un certificado
+// rechazado con la hora puesta lo enciende. Sin red u otros errores no se cambia nada.
+void noteTls(WiFiClientSecure& client, int code) {
+  if (code > 0) {
+    cloud::status().filtered = false;
+    return;
+  }
+  char why[8];  // solo hace falta el número; el texto se corta
+  if (client.lastError(why, sizeof why) == kCertVerifyFailed && time(nullptr) > kClockSet) {
+    if (!cloud::status().filtered) Serial.println("[nube] la red cambió el certificado de siblock.s-dev.win");
+    cloud::status().filtered = true;
+  }
+}
+
 bool canConnect() { return WiFi.status() == WL_CONNECTED && ESP.getMaxAllocHeap() >= kMinFreeBlock; }
 
 void setup(HTTPClient& http) {
@@ -52,6 +72,7 @@ Result postJson(const char* path, const std::string& body) {
   http.addHeader("Content-Type", "application/json");
   int code = http.POST(String(body.c_str()));
   http.end();
+  noteTls(client, code);
   if (code <= 0) return Result::kNoNet;
   if (code >= 200 && code < 300) return Result::kOk;
   if (code == 429) return Result::kLimit;
@@ -66,6 +87,7 @@ bool fetchLatestVersion(std::string& out) {
   setup(http);
   if (!http.begin(client, SIBLOCK_CLOUD_BASE "/version.json")) return false;
   int code = http.GET();
+  noteTls(client, code);
   if (code != HTTP_CODE_OK) {
     http.end();
     return false;
@@ -108,6 +130,7 @@ bool fetchCommunity(siblock::CommunityParser& parser) {
   setup(http);
   if (!http.begin(client, SIBLOCK_CLOUD_BASE "/api/v1/permitidos")) return false;
   int code = http.GET();
+  noteTls(client, code);
   int size = http.getSize();  // -1 si no dice el tamaño
   if (code != HTTP_CODE_OK || size > int(siblock::kCommunityMaxBody)) {
     http.end();

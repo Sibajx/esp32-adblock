@@ -35,6 +35,10 @@ struct Status {
   bool community = false;     // "Usar los permitidos de la comunidad"
   Ping lastPing = Ping::kNever;
   std::string latest;         // última versión publicada que se vio ("" = todavía no)
+  // La última conexión a siblock.s-dev.win falló porque el certificado no era el de verdad (con la
+  // hora ya puesta): un filtro de la red (FortiGate, antivirus del router) se pone en medio. Se
+  // apaga con la siguiente conexión que sí llega.
+  bool filtered = false;
 };
 Status& status();
 const char* pingName(Ping p);  // "never" | "ok" | "fail"

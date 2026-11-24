@@ -14,6 +14,31 @@ export function puedeInstalar(nav) {
   return !!nav && typeof nav === 'object' && 'serial' in nav;
 }
 
+// Chips USB-serie de las placas ESP32 (CP210x, CH340/CH9102, FTDI, Prolific y el USB propio de
+// Espressif). En Linux la lista de puertos trae además decenas de ttyS* internos que no son la placa.
+export const FILTROS_PLACA = [0x10c4, 0x1a86, 0x0403, 0x067b, 0x303a].map((usbVendorId) => ({ usbVendorId }));
+
+/**
+ * Hace que la lista de puertos muestre solo placas. El instalador (esp-web-tools, sin opción para
+ * esto) llama a requestPort() sin filtros: se le ponen los de arriba. Si la persona cierra la lista
+ * sin elegir (quizá su placa usa otro chip), la siguiente vez se muestran todos los puertos.
+ */
+export function soloPlacas(nav) {
+  if (!puedeInstalar(nav) || typeof nav.serial.requestPort !== 'function') return false;
+  const original = nav.serial.requestPort.bind(nav.serial);
+  let todos = false;
+  nav.serial.requestPort = async (opciones) => {
+    if (opciones?.filters || todos) return original(opciones);
+    try {
+      return await original({ ...opciones, filters: FILTROS_PLACA });
+    } catch (e) {
+      if (e && e.name === 'NotFoundError') todos = true;
+      throw e;
+    }
+  };
+  return true;
+}
+
 function el(doc, id) {
   return doc.getElementById(id);
 }
@@ -161,6 +186,7 @@ export function iniciarEmbudo(doc, contar = contarPaso, Observador = globalThis.
 
 if (typeof document !== 'undefined' && typeof navigator !== 'undefined') {
   prepararPagina(document, navigator);
+  soloPlacas(navigator);
   conectarRespaldo(document, navigator);
   iniciarEmbudo(document);
 }

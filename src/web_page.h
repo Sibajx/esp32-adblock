@@ -114,6 +114,7 @@ fieldset{border:0;padding:0;margin:0;display:grid;gap:4px}legend{font-size:14px;
 <label class="chk"><input type="checkbox" id="com"><span>Usar los permitidos de la comunidad</span></label>
 <span class="l">Si lo activas, SiBlock baja una vez al día la lista de sitios que otras casas reportaron con «No debió bloquearse» y que revisamos a mano, y deja de bloquearlos. Solo pide un archivo público; no manda nada tuyo. Tus sitios en «Bloquear» siempre ganan, y la lista no se mezcla con «Mis reglas».</span>
 <span id="comst" class="l" hidden></span>
+<p id="filtro" class="l warn" role="status" hidden>Tu red no deja que SiBlock llegue a siblock.s-dev.win: un filtro (como FortiGate) se pone en medio. El bloqueo de anuncios sigue funcionando; solo faltan los permitidos de la comunidad, el aviso de versiones y los reportes. Pide a quien administra la red que permita siblock.s-dev.win. <a href="https://siblock.s-dev.win/obstaculos.html#filtro-red" target="_blank" rel="noopener noreferrer">Más</a></p>
 <div id="nmsg" class="l" aria-live="polite"></div>
 <h2 style="margin:8px 0 0">¿Qué módem tienes?</h2>
 <span class="l">Ayuda a que otras personas con tu compañía de internet sepan dónde cambiar el DNS. Necesita «Compartir datos anónimos».</span>
@@ -445,7 +446,7 @@ const nerr=e=>NMSG[e.message]||e.message;
 function pintaNube(){if(!nube)return;if(!nubeOcupado){$('share').checked=!!nube.share;$('vchk').checked=!!nube.versionCheck;$('com').checked=!!nube.community}
  const cu=nube.communityUpdated>0?' · revisada el '+new Date(nube.communityUpdated*1000).toLocaleDateString():'';$('comst').hidden=!nube.community;
  $('comst').textContent=!nube.community?'':nube.communityUpdated||nube.communityCount?'Sitios permitidos por la comunidad: '+fmt(nube.communityCount|0)+cu:'Todavía no se bajó la lista: tarda un par de minutos.';
- $('upd').hidden=!nube.update;$('updv').textContent=nube.latest||'';
+ $('filtro').hidden=!nube.filtro;$('upd').hidden=!nube.update;$('updv').textContent=nube.latest||'';
  if(/^[0-9a-f]{32}$/.test(nube.installId||''))$('rep').href=NUBE+'reporte.html#i='+nube.installId}
 async function cargaNube(){if(!tk)return;try{nube=await get('/api/cloud');pintaNube()}catch(e){}}
 async function opcionNube(campo,c){const on=c.checked;$('nmsg').textContent='';nubeOcupado++;

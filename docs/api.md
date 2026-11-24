@@ -325,7 +325,7 @@ El estado de "Compartir con SiBlock". Las dos opciones están **apagadas de fáb
 ```json
 {"share":false,"versionCheck":false,"installId":"<32 hex>","current":"v1.2.0",
  "latest":"","update":false,"lastPing":"never",
- "community":false,"communityCount":0,"communityUpdated":0}
+ "community":false,"communityCount":0,"communityUpdated":0,"filtro":false}
 ```
 
 | Campo | Qué es |
@@ -340,6 +340,7 @@ El estado de "Compartir con SiBlock". Las dos opciones están **apagadas de fáb
 | `community` | "Usar los permitidos de la comunidad" (NVS `comunidad`) |
 | `communityCount` | Sitios de la comunidad en uso (0 a 500); 0 con la opción apagada |
 | `communityUpdated` | Segundos desde 1970 de la última bajada buena de la lista; `0` si todavía no hay (o se bajó sin hora de internet). Se guarda con la lista en `/comunidad.bin` |
+| `filtro` | `true` si la última conexión a siblock.s-dev.win falló porque el certificado no era el de verdad (con la hora ya puesta): un filtro de la red, como FortiGate, se pone en medio. Vuelve a `false` con la siguiente respuesta HTTP. Solo en RAM. El panel lo muestra con un enlace a `obstaculos.html#filtro-red`. Lo prueba `sim/test_sim.py` (18e2, con `SIM_CLOUD_TLS_FILTRO=1`) |
 
 En la NVS solo cuenta como encendido el valor `1`: si la clave falta, vale `2` o no se puede leer,
 la opción está apagada y no sale nada.

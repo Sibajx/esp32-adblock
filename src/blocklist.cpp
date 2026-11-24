@@ -1,3 +1,4 @@
+#include "fs_util.h"
 #include "blocklist.h"
 
 #include <HTTPClient.h>
@@ -62,7 +63,7 @@ struct Lock {
 // corte de luz deja la versión vieja o la nueva, nunca ninguna.
 bool replaceFile(const char* src, const char* dst) {
   if (LittleFS.rename(src, dst)) return true;
-  LittleFS.remove(dst);  // por si alguna versión no pisa el destino
+  fsu::remove(dst);  // por si alguna versión no pisa el destino
   return LittleFS.rename(src, dst);
 }
 }  // namespace
@@ -70,7 +71,7 @@ bool replaceFile(const char* src, const char* dst) {
 bool BlockList::begin() {
   mutex_ = xSemaphoreCreateMutex();
   cleanupTemp();
-  fs::File f = LittleFS.open(kRulesPath, FILE_READ);
+  fs::File f = fsu::openRead(kRulesPath);
   if (f) {
     std::string text;
     text.reserve(f.size());
@@ -93,7 +94,7 @@ static bool openListFile(const char* path, fs::File& fl, std::unique_ptr<uint32_
                          uint32_t& n) {
   idx.reset(new (std::nothrow) uint32_t[kIndexSize]);
   if (!idx) return false;
-  fl = LittleFS.open(path, FILE_READ);
+  fl = fsu::openRead(path);
   if (!fl) return false;
   size_t size = fl.size();
   bool ok = size >= kIndexBytes && (size - kIndexBytes) % kKeyBytes == 0 &&
@@ -224,7 +225,7 @@ bool BlockList::replaceRules(const std::vector<std::string>& block, const std::v
   bool ok = writeAll(f, text.data(), text.size());
   f.close();
   if (!ok || !replaceFile(kRulesNew, kRulesPath)) {
-    LittleFS.remove(kRulesNew);
+    fsu::remove(kRulesNew);
     return false;
   }
   Lock l(mutex_);
@@ -262,11 +263,11 @@ uint32_t BlockList::pausedSecondsLeft() const {
 // ---------- Descarga y armado de la lista ----------
 
 void BlockList::cleanupTemp() {
-  for (int b = 0; b < kBuckets; b++) LittleFS.remove(bucketPath(b));
-  LittleFS.remove(kListNew);
-  LittleFS.remove(kRulesNew);
-  LittleFS.remove(kOldIdxPath);
-  LittleFS.remove("/idx.new");
+  for (int b = 0; b < kBuckets; b++) fsu::remove(bucketPath(b));
+  fsu::remove(kListNew);
+  fsu::remove(kRulesNew);
+  fsu::remove(kOldIdxPath);
+  fsu::remove("/idx.new");
   LittleFS.mkdir(kTmpDir);
 }
 
@@ -389,7 +390,7 @@ bool BlockList::buildFromBuckets(uint32_t& total) {
 
   for (int b = 0; ok && b < kBuckets; b++) {
     String path = bucketPath(b);
-    fs::File f = LittleFS.open(path, FILE_READ);
+    fs::File f = fsu::openRead(path);
     size_t n = f ? f.size() / kKeyBytes : 0;
     if (n) {
       // Se lee de a pedazos directo a las claves: no hace falta un búfer crudo del tamaño entero.
@@ -418,7 +419,7 @@ bool BlockList::buildFromBuckets(uint32_t& total) {
       }
     }
     if (f) f.close();
-    LittleFS.remove(path);  // libera espacio antes de seguir
+    fsu::remove(path);  // libera espacio antes de seguir
     delay(1);
   }
   while (nextIdx < kIndexSize) idx[nextIdx++] = total;

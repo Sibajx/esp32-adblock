@@ -185,6 +185,17 @@
               </ol>
               <p>Los nombres de los botones al actualizar: <span class="falta">falta verificar</span> con la placa.</p>
             </details>
+            <details class="ingles" id="no-aparece">
+              <summary>Tu placa no aparece en la lista</summary>
+              <ul>
+                <li>Prueba otro cable: muchos cables USB solo cargan y no pasan datos.</li>
+                <li>Si la lista sale vacía, ciérrala y pulsa de nuevo el botón: la segunda vez se ven todos los puertos.</li>
+                <li>En Linux, si instalaste Chromium o Brave desde la tienda de Ubuntu (snap), le falta permiso para
+                  el USB. Abre una terminal, escribe <code>sudo snap connect brave:raw-usb</code> (o
+                  <code>chromium:raw-usb</code>), cierra el navegador por completo y vuelve a abrirlo.</li>
+                <li>En Linux tu usuario también debe estar en el grupo <code>dialout</code>.</li>
+              </ul>
+            </details>
           </div>
 
           <p id="sin-soporte" class="aviso" hidden>

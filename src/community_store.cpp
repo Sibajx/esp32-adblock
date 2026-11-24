@@ -1,3 +1,4 @@
+#include "fs_util.h"
 #include "community_store.h"
 
 #include <LittleFS.h>
@@ -31,10 +32,10 @@ bool save(const siblock::CommunityList& l) {
   bool ok = f && f.write(reinterpret_cast<const uint8_t*>(data.data()), data.size()) == data.size();
   if (f) f.close();
   if (ok && !LittleFS.rename(kTmp, kFile)) {
-    LittleFS.remove(kFile);  // por si alguna versión no pisa el destino
+    fsu::remove(kFile);  // por si alguna versión no pisa el destino
     ok = LittleFS.rename(kTmp, kFile);
   }
-  if (!ok) LittleFS.remove(kTmp);
+  if (!ok) fsu::remove(kTmp);
   return ok;
 }
 }  // namespace
@@ -43,12 +44,12 @@ namespace community {
 
 void begin(BlockList* list) {
   gList = list;
-  LittleFS.remove(kTmp);
+  fsu::remove(kTmp);
   if (!cloud::status().community) {
-    LittleFS.remove(kFile);
+    fsu::remove(kFile);
     return;
   }
-  fs::File f = LittleFS.open(kFile, FILE_READ);
+  fs::File f = fsu::openRead(kFile);
   if (!f) return;
   std::vector<uint8_t> buf;
   size_t size = f.size();
@@ -86,8 +87,8 @@ bool refresh() {
 void clear() {
   siblock::CommunityList vacia;
   apply(vacia);
-  LittleFS.remove(kFile);
-  LittleFS.remove(kTmp);
+  fsu::remove(kFile);
+  fsu::remove(kTmp);
 }
 
 Info info() { return gInfo; }

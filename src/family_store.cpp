@@ -1,3 +1,4 @@
+#include "fs_util.h"
 #include "family_store.h"
 
 #include <LittleFS.h>
@@ -90,11 +91,11 @@ bool writeFile(const std::string& text) {
   bool ok = f && f.write(reinterpret_cast<const uint8_t*>(text.data()), text.size()) == text.size();
   if (f) f.close();
   if (ok && !LittleFS.rename(kNew, kPath)) {
-    LittleFS.remove(kPath);  // por si alguna versión no pisa el destino
+    fsu::remove(kPath);  // por si alguna versión no pisa el destino
     ok = LittleFS.rename(kNew, kPath);
   }
   if (!ok) {
-    LittleFS.remove(kNew);
+    fsu::remove(kNew);
     Serial.println("[familia] no se pudo guardar /familia.txt");
   }
   return ok;
@@ -161,7 +162,7 @@ bool arpLookup(uint32_t ip, uint8_t mac[6]) {
 namespace family {
 
 bool readFile(const char* path, siblock::BackupReader& r) {
-  fs::File f = LittleFS.open(path, FILE_READ);
+  fs::File f = fsu::openRead(path);
   if (!f) return false;
   if (f.size() > siblock::kBackupMaxBytes) {
     f.close();
@@ -194,7 +195,7 @@ void begin() {
   gMutex = xSemaphoreCreateMutex();
   gSaveMutex = xSemaphoreCreateMutex();
   std::unique_ptr<siblock::BackupReader> r(new (std::nothrow) siblock::BackupReader(false));
-  fs::File probe = LittleFS.open(kPath, FILE_READ);
+  fs::File probe = fsu::openRead(kPath);
   bool exists = bool(probe);
   if (probe) probe.close();
   bool ok = r && exists && readFile(kPath, *r) && r->finish();
@@ -402,15 +403,15 @@ bool replace(const Family& f) {
 
 void erase() {
   if (!gMutex) {
-    LittleFS.remove(kPath);
+    fsu::remove(kPath);
     return;
   }
   // Un guardado a medias no debe volver a escribir lo que se acaba de borrar.
   bool saving = gSaveMutex && xSemaphoreTake(gSaveMutex, portMAX_DELAY) == pdTRUE;
   {
     Lock l;
-    LittleFS.remove(kPath);
-    LittleFS.remove(kNew);
+    fsu::remove(kPath);
+    fsu::remove(kNew);
     gFamily.clear();
     newSalt(gFamily);
     clearVolatile();
